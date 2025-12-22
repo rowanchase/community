@@ -1,0 +1,181 @@
+:root {
+    /* Modern editorial palette */
+    --paper: #FFFFFF;
+    --ink: #1a1a1a;
+    --ink-medium: #404040;
+    --ink-light: #707070;
+    --border: #e0e0e0;
+}
+
+/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    /* Modern font stack - clean and readable */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--ink);
+    background-color: var(--paper);
+    font-weight: 400;
+}
+
+.app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Modern header */
+.navbar {
+    position: sticky;
+    top: 0;
+    background-color: var(--paper);
+    color: var(--ink);
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid var(--border);
+    z-index: 100;
+}
+
+.navbar-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    text-align: left;
+}
+
+/* Content area */
+.event-list {
+    flex: 1;
+    padding: 3rem 2rem;
+    max-width: 800px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* Event cards - clean and minimal */
+.event-card {
+    background: var(--paper);
+    padding: 2.5rem 0;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.event-card:last-child {
+    border-bottom: none;
+}
+
+/* Modern headline typography */
+.event-title {
+    color: var(--ink);
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+/* Clean body text */
+.event-description {
+    color: var(--ink-medium);
+    margin-bottom: 1.5rem;
+    margin-top: 1rem;
+    line-height: 1.7;
+    font-size: 1.05rem;
+    max-width: 650px;
+}
+
+/* Metadata styling */
+.event-time,
+.event-location {
+    color: var(--ink-light);
+    font-size: 0.9rem;
+    margin-bottom: 0.35rem;
+    line-height: 1.5;
+}
+
+.event-location {
+    margin-bottom: 0;
+}
+
+/* RSVP Section - minimal */
+.rsvp-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    max-width: 650px;
+}
+
+.rsvp-title {
+    color: var(--ink);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.rsvp-count {
+    color: var(--ink-medium);
+    font-size: 0.95rem;
+}
+
+/* Modern button */
+.rsvp-link {
+    display: inline-block;
+    margin-top: 1rem;
+    color: var(--paper);
+    background-color: var(--ink);
+    padding: 0.75rem 2rem;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+}
+
+.rsvp-link:hover {
+    background-color: var(--ink-medium);
+    transform: translateY(-1px);
+}
+
+/* Loading state */
+.loading {
+    padding: 3rem;
+    text-align: center;
+    color: var(--ink-light);
+    font-size: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .navbar {
+        padding: 1rem 1.5rem;
+    }
+
+    .navbar-title {
+        font-size: 1.25rem;
+    }
+
+    .event-list {
+        padding: 2rem 1.5rem;
+    }
+
+    .event-card {
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+
+    .event-title {
+        font-size: 1.5rem;
+    }
+
+    .event-description {
+        font-size: 1rem;
+    }
+}

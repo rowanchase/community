@@ -1,0 +1,6 @@
+node_modules
+elm-stuff
+public/elm.js
+.mcp.json
+CLAUDE.md
+docs/roadmap.md

@@ -1,0 +1,10 @@
+{
+"scripts": {
+	"build": "elm make src/Main.elm --output=public/elm.js",
+	"start": "http-server public -p 8000"
+},
+  "devDependencies": {
+    "elm-test": "^0.19.1-revision17",
+    "http-server": "^14.1.1"
+  }
+}
