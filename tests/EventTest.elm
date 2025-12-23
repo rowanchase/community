@@ -97,4 +97,38 @@ suite =
                 result
                     |> List.map .title
                     |> Expect.equal [ "Today", "Multi", "Future" ]
+        , describe "Short Date formatting"
+            [ test "formats early date in month with leading zero" <|
+                \_ ->
+                    let
+                        zone =
+                            Time.utc
+
+                        datetime =
+                            "2025-01-03T10:00:00"
+                    in
+                    Expect.equal "03 JAN" (Event.formatDateShort zone datetime)
+            , test "formats double digit date" <|
+                \_ ->
+                    let
+                        zone =
+                            Time.utc
+
+                        datetime =
+                            "2025-12-19T15:00:00"
+                    in
+                    Expect.equal "19 DEC"
+                        (Event.formatDateShort zone datetime)
+            , test "formats datetimes with minute and second components" <|
+                \_ ->
+                    let
+                        zone =
+                            Time.utc
+
+                        datetime =
+                            "2025-03-25T12:30:30"
+                    in
+                    Expect.equal "25 MAR"
+                        (Event.formatDateShort zone datetime)
+            ]
         ]

@@ -85,6 +85,14 @@ sampleEvents =
       , rsvp = WithRsvp []
       , imageUrl = Nothing
       }
+    , { title = "Rowan's Birthday"
+      , description = "Rowan isn't turning 90 yet"
+      , start = "2026-04-09T17:30:00"
+      , end = "2026-04-09T23:59:59"
+      , location = "Fryerstown Old School"
+      , rsvp = WithRsvp []
+      , imageUrl = Nothing
+      }
     ]
 
 
@@ -124,6 +132,24 @@ posixToDateString zone posix =
         ]
         zone
         posix
+
+
+formatDateShort : Time.Zone -> String -> String
+formatDateShort zone datetime =
+    case Iso8601.toTime datetime of
+        Ok posix ->
+            String.toUpper
+                (DateFormat.format
+                    [ DateFormat.dayOfMonthFixed
+                    , DateFormat.text " "
+                    , DateFormat.monthNameAbbreviated
+                    ]
+                    zone
+                    posix
+                )
+
+        Err _ ->
+            datetime
 
 
 getEventEndDate : Event -> String

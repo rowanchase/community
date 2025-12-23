@@ -4,6 +4,8 @@
     --ink: #1a1a1a;
     --ink-medium: #404040;
     --ink-light: #707070;
+    --orange: #f5b042;
+    --light-blue: #6cbcf5;
     --border: #e0e0e0;
 }
 
@@ -36,7 +38,7 @@ body {
     background-color: var(--paper);
     color: var(--ink);
     padding: 1.25rem 2rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--ink);
     z-index: 100;
 }
 
@@ -46,6 +48,12 @@ body {
     letter-spacing: -0.01em;
     text-transform: uppercase;
     text-align: left;
+}
+
+.navbar-town {
+	font-size: 2rem;
+	font-weight: 700;
+	text-align: right;
 }
 
 /* Content area */
@@ -59,19 +67,62 @@ body {
 
 /* Event cards - clean and minimal */
 .event-card {
+    display: flex;
+    flex-direction: row;
     background: var(--paper);
-    padding: 2.5rem 0;
+    padding: 2.5rem 2rem;
+    margin-left: -2rem;
+    margin-right: -2rem;
     margin-bottom: 2.5rem;
-    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
 }
 
-.event-card:last-child {
-    border-bottom: none;
+.event-card:nth-child(3n+1) .event-date-box {
+	background-color: var(--orange);
+	color: var(--ink);
 }
+
+
+.event-card:nth-child(3n+2) .event-date-box {
+	background-color: var(--light-blue);
+	color: var(--ink);
+}
+
+
+.event-card:nth-child(3n+3) .event-date-box {
+	background-color: var(--ink);
+	color: var(--paper);
+}
+
+.event-date-box {
+	background-color: var(--orange);
+	color: var(--ink);
+	font-weight: 700;
+	width: 100px;
+	display: flex;
+	align-items: center;
+	margin-top: -2rem;
+	margin-bottom: -2rem;
+	justify-content: center;
+	writing-mode: vertical-rl;
+	text-orientation: mixed;
+	border-right: 1px solid var(--ink); 
+}
+
+.event-content {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	height: 100%;
+	padding-left: 0.5rem;
+}
+
 
 /* Modern headline typography */
 .event-title {
     color: var(--ink);
+    align-self: flex-start;
     font-size: 2rem;
     font-weight: 700;
     margin-bottom: 0.75rem;
@@ -82,6 +133,8 @@ body {
 /* Clean body text */
 .event-description {
     color: var(--ink-medium);
+    align-self: flex-end;
+    text-align: right;
     margin-bottom: 1.5rem;
     margin-top: 1rem;
     line-height: 1.7;
