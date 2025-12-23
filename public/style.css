@@ -5,7 +5,8 @@
     --ink-medium: #404040;
     --ink-light: #707070;
     --orange: #f5b042;
-    --light-blue: #6cbcf5;
+    --light-blue: #89c1f5;
+    --lavender: #bd89f5;
     --border: #e0e0e0;
 }
 
@@ -92,8 +93,8 @@ body {
 
 
 .event-card:nth-child(3n+3) .event-date-box {
-	background-color: var(--ink);
-	color: var(--paper);
+	background-color: var(--lavender);
+	color: var(--ink);
 }
 
 .event-date-box {
@@ -128,6 +129,7 @@ body {
     color: var(--ink);
     align-self: flex-end;
     text-align: right;
+    text-transform: uppercase;
     font-size: 2rem;
     font-weight: 700;
     margin-bottom: 0.75rem;
