@@ -71,6 +71,7 @@ body {
     flex-direction: row;
     background: var(--paper);
     padding: 2.5rem 2rem;
+    text-align: right;
     margin-left: -2rem;
     margin-right: -2rem;
     margin-bottom: 2.5rem;
@@ -113,17 +114,19 @@ body {
 
 .event-content {
 	display: flex;
+	flex: 1;
 	flex-direction: column;
 	justify-content: space-between;
 	height: 100%;
 	padding-left: 0.5rem;
+	margin-right: 1rem;
 }
 
 
 /* Modern headline typography */
 .event-title {
     color: var(--ink);
-    align-self: flex-start;
+    align-self: flex-end;
     text-align: right;
     font-size: 2rem;
     font-weight: 700;
@@ -136,7 +139,7 @@ body {
 .event-description {
     color: var(--ink-medium);
     align-self: flex-end;
-    text-align: left;
+    text-align: right;
     margin-bottom: 1.5rem;
     margin-top: 1rem;
     line-height: 1.7;
