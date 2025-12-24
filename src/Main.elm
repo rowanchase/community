@@ -5,6 +5,7 @@ import DateFormat
 import Event exposing (Event, sampleEvents)
 import Html exposing (Html, div, h1, text)
 import Html.Attributes
+import Html.Events exposing (onClick)
 import Iso8601
 import Task
 import Time
@@ -47,6 +48,8 @@ init _ =
 type Msg
     = ReceivedTime Time.Posix
     | ReceivedZone Time.Zone
+    | OpenEventModal Event
+    | OpenRsvpModal Event
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -57,6 +60,12 @@ update msg model =
 
         ReceivedZone zone ->
             ( { model | zone = Just zone }, Cmd.none )
+
+        OpenEventModal event ->
+            ( model, Cmd.none )
+
+        OpenRsvpModal event ->
+            ( model, Cmd.none )
 
 
 
@@ -107,9 +116,38 @@ viewEventCard zone event =
             [ text (Event.formatDateShort zone event.start) ]
         , div [ Html.Attributes.class "event-content" ]
             [ h1 [ Html.Attributes.class "event-title" ] [ text event.title ]
-            , div [ Html.Attributes.class "event-description" ] [ text event.description ]
+            , div [ Html.Attributes.class "event-time" ]
+                [ text (Event.formatStartEndShort zone event.start event.end) ]
+            , div [ Html.Attributes.class "event-rsvp" ]
+                [ getRsvpButton event ]
             ]
         ]
+
+
+getRsvpButton : Event -> Html Msg
+getRsvpButton event =
+    case event.rsvp of
+        Event.NoRsvp ->
+            Html.button
+                [ Html.Attributes.class "event-rsvp-button"
+                , onClick (OpenEventModal event)
+                ]
+                [ text "All Welcome!" ]
+
+        Event.WithRsvp _ ->
+            Html.button
+                [ Html.Attributes.class "event-rsvp-button"
+                , onClick (OpenRsvpModal event)
+                ]
+                [ text "RSVP" ]
+
+        Event.ExternalRsvp url ->
+            Html.a
+                [ Html.Attributes.href url
+                , Html.Attributes.target "_blank" -- opens in new tab
+                , Html.Attributes.class "event-rsvp-button"
+                ]
+                [ text "Get Tickets" ]
 
 
 

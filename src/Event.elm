@@ -90,7 +90,7 @@ sampleEvents =
       , start = "2026-04-09T17:30:00"
       , end = "2026-04-09T23:59:59"
       , location = "Fryerstown Old School"
-      , rsvp = WithRsvp []
+      , rsvp = NoRsvp
       , imageUrl = Nothing
       }
     ]
@@ -150,6 +150,55 @@ formatDateShort zone datetime =
 
         Err _ ->
             datetime
+
+
+formatTimeShort : Time.Zone -> Time.Posix -> String
+formatTimeShort zone posix =
+    let
+        hour =
+            DateFormat.format [ DateFormat.hourNumber ] zone posix
+
+        minute =
+            Time.toMinute zone posix
+
+        ampm =
+            DateFormat.format [ DateFormat.amPmLowercase ] zone posix
+
+        maybeMinutes =
+            if minute == 0 then
+                ""
+
+            else
+                ":" ++ String.padLeft 2 '0' (String.fromInt minute)
+    in
+    hour ++ maybeMinutes ++ ampm
+
+
+formatStartEndShort : Time.Zone -> String -> String -> String
+formatStartEndShort zone start end =
+    case ( Iso8601.toTime start, Iso8601.toTime end ) of
+        ( Ok startPosix, Ok endPosix ) ->
+            let
+                isLate =
+                    Time.toHour zone endPosix == 23 && Time.toMinute zone endPosix == 59
+
+                isSameTime =
+                    Time.posixToMillis startPosix == Time.posixToMillis endPosix
+
+                isMultiDay =
+                    Time.toDay zone startPosix /= Time.toDay zone endPosix
+            in
+            if isLate then
+                formatTimeShort zone startPosix ++ " until late"
+
+            else if isSameTime || isMultiDay then
+                formatTimeShort zone startPosix
+
+            else
+                formatTimeShort zone startPosix ++ " until " ++ formatTimeShort zone endPosix
+
+        _ ->
+            start ++ " until " ++ end
 
 
 getEventEndDate : Event -> String

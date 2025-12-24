@@ -131,4 +131,89 @@ suite =
                     Expect.equal "25 MAR"
                         (Event.formatDateShort zone datetime)
             ]
+        , describe "Short Time formatting"
+            [ test "formats early time in day without minutes" <|
+                \_ ->
+                    let
+                        zone =
+                            Time.utc
+
+                        start =
+                            "2025-01-03T07:00:00"
+
+                        end =
+                            "2025-01-03T09:00:00"
+                    in
+                    Expect.equal "7am until 9am" (Event.formatStartEndShort zone start end)
+            , test "formats early time in day with minutes" <|
+                \_ ->
+                    let
+                        zone =
+                            Time.utc
+
+                        start =
+                            "2025-12-19T07:30:00"
+
+                        end =
+                            "2025-12-19T09:30:00"
+                    in
+                    Expect.equal "7:30am until 9:30am"
+                        (Event.formatStartEndShort zone start end)
+            , test "formats early start afternoon end" <|
+                \_ ->
+                    let
+                        zone =
+                            Time.utc
+
+                        start =
+                            "2025-03-25T09:00:00"
+
+                        end =
+                            "2025-03-25T15:30:00"
+                    in
+                    Expect.equal "9am until 3:30pm"
+                        (Event.formatStartEndShort zone start end)
+            , test "formats evening time until late" <|
+                \_ ->
+                    let
+                        zone =
+                            Time.utc
+
+                        start =
+                            "2025-03-25T19:00:00"
+
+                        end =
+                            "2025-03-25T23:59:59"
+                    in
+                    Expect.equal "7pm until late"
+                        (Event.formatStartEndShort zone start end)
+            , test "gracefully handles start = end" <|
+                \_ ->
+                    let
+                        zone =
+                            Time.utc
+
+                        start =
+                            "2025-03-25T19:00:00"
+
+                        end =
+                            "2025-03-25T19:00:00"
+                    in
+                    Expect.equal "7pm"
+                        (Event.formatStartEndShort zone start end)
+            , test "gracefully handles invalid times" <|
+                \_ ->
+                    let
+                        zone =
+                            Time.utc
+
+                        start =
+                            "mid-morning"
+
+                        end =
+                            "after lunch"
+                    in
+                    Expect.equal "mid-morning until after lunch"
+                        (Event.formatStartEndShort zone start end)
+            ]
         ]
