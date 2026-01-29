@@ -226,6 +226,32 @@ upcomingEvents now events =
     List.filter (\event -> getEventEndDate event >= todayDate) events
 
 
+rsvpConfigDecoder : Json.Decode.Decoder RsvpConfig
+rsvpConfigDecoder =
+    Json.Decode.field "rsvp_type" Json.Decode.string
+        |> Json.Decode.andThen rsvpConfigFromString
+
+
+rsvpConfigFromString : String -> Json.Decode.Decoder RsvpConfig
+rsvpConfigFromString rsvpType =
+    case rsvpType of
+        "no_attendance" ->
+            Json.Decode.succeed NoAttendance
+
+        "no_rsvp" ->
+            Json.Decode.succeed NoRsvp
+
+        "external_rsvp" ->
+            Json.Decode.map ExternalRsvp
+                (Json.Decode.field "external_rsvp_url" Json.Decode.string)
+
+        "with_rsvp" ->
+            Json.Decode.succeed (WithRsvp [])
+
+        _ ->
+            Json.Decode.fail ("Unknown rsvp_type: " ++ rsvpType)
+
+
 eventDecoder : Json.Decode.Decoder Event
 eventDecoder =
     Json.Decode.map8 Event
@@ -236,4 +262,4 @@ eventDecoder =
         (Json.Decode.field "end_time" Json.Decode.string)
         (Json.Decode.field "location" Json.Decode.string)
         (Json.Decode.field "image_url" (Json.Decode.nullable Json.Decode.string))
-        (Json.Decode.succeed NoRsvp)
+        rsvpConfigDecoder

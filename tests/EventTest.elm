@@ -37,9 +37,6 @@ suite =
         , test "upcomingEvents filters to events ending today or later" <|
             \_ ->
                 let
-                    zone =
-                        Time.utc
-
                     now =
                         Iso8601.toTime "2025-06-15T18:00:00"
                             -- 6pm on June 15
@@ -128,7 +125,7 @@ suite =
                         (Event.formatDateShort datetime)
             ]
         , describe "Decoding event from JSON"
-            [ test "decodes a valid event from JSON" <|
+            [ test "decodes a valid event from JSON with NoRsvp" <|
                 \_ ->
                     let
                         json =
@@ -141,6 +138,8 @@ suite =
                   "end_time": "2026-01-01T09:00:00",
                   "location": "Fryerstown School Hall",
                   "image_url": null,
+                  "rsvp_type": "no_rsvp",
+                  "external_rsvp_url": null,
                   "created_at": "2026-01-29T01:50:16+00:00",
                   "updated_at": null
               }
@@ -159,27 +158,120 @@ suite =
                     in
                     Json.Decode.decodeString Event.eventDecoder json
                         |> Expect.equal (Ok expected)
+            , test "decodes a valid event from JSON with NoAttendance" <|
+                \_ ->
+                    let
+                        json =
+                            """
+              {
+                  "id": "123e4567-e89b-12d3-a456-426614174000",
+                  "title": "New Years Eve",
+                  "description": "Celebration for the new year!",
+                  "start_time": "2026-12-31T23:59:59",
+                  "end_time": "2026-01-01T09:00:00",
+                  "location": "Fryerstown School Hall",
+                  "image_url": null,
+                  "rsvp_type": "no_attendance",
+                  "external_rsvp_url": null,
+                  "created_at": "2026-01-29T01:50:16+00:00",
+                  "updated_at": null
+              }
+              """
+
+                        expected =
+                            { id = "123e4567-e89b-12d3-a456-426614174000"
+                            , title = "New Years Eve"
+                            , description = "Celebration for the new year!"
+                            , startTime = "2026-12-31T23:59:59"
+                            , endTime = "2026-01-01T09:00:00"
+                            , location = "Fryerstown School Hall"
+                            , imageUrl = Nothing
+                            , rsvp = NoAttendance
+                            }
+                    in
+                    Json.Decode.decodeString Event.eventDecoder json
+                        |> Expect.equal (Ok expected)
+            , test "decodes a valid event from JSON with ExternalRsvp" <|
+                \_ ->
+                    let
+                        json =
+                            """
+              {
+                  "id": "123e4567-e89b-12d3-a456-426614174000",
+                  "title": "New Years Eve",
+                  "description": "Celebration for the new year!",
+                  "start_time": "2026-12-31T23:59:59",
+                  "end_time": "2026-01-01T09:00:00",
+                  "location": "Fryerstown School Hall",
+                  "image_url": null,
+                  "rsvp_type": "external_rsvp",
+                  "external_rsvp_url": "http://eventsrus.com/event-1",
+                  "created_at": "2026-01-29T01:50:16+00:00",
+                  "updated_at": null
+              }
+              """
+
+                        expected =
+                            { id = "123e4567-e89b-12d3-a456-426614174000"
+                            , title = "New Years Eve"
+                            , description = "Celebration for the new year!"
+                            , startTime = "2026-12-31T23:59:59"
+                            , endTime = "2026-01-01T09:00:00"
+                            , location = "Fryerstown School Hall"
+                            , imageUrl = Nothing
+                            , rsvp = ExternalRsvp "http://eventsrus.com/event-1"
+                            }
+                    in
+                    Json.Decode.decodeString Event.eventDecoder json
+                        |> Expect.equal (Ok expected)
+            , test "decodes a valid event from JSON with WithRsvp" <|
+                \_ ->
+                    let
+                        json =
+                            """
+              {
+                  "id": "123e4567-e89b-12d3-a456-426614174000",
+                  "title": "New Years Eve",
+                  "description": "Celebration for the new year!",
+                  "start_time": "2026-12-31T23:59:59",
+                  "end_time": "2026-01-01T09:00:00",
+                  "location": "Fryerstown School Hall",
+                  "image_url": null,
+                  "rsvp_type": "with_rsvp",
+                  "external_rsvp_url": null,
+                  "created_at": "2026-01-29T01:50:16+00:00",
+                  "updated_at": null
+              }
+              """
+
+                        expected =
+                            { id = "123e4567-e89b-12d3-a456-426614174000"
+                            , title = "New Years Eve"
+                            , description = "Celebration for the new year!"
+                            , startTime = "2026-12-31T23:59:59"
+                            , endTime = "2026-01-01T09:00:00"
+                            , location = "Fryerstown School Hall"
+                            , imageUrl = Nothing
+                            , rsvp = WithRsvp []
+                            }
+                    in
+                    Json.Decode.decodeString Event.eventDecoder json
+                        |> Expect.equal (Ok expected)
             ]
         , describe "Short Time formatting"
             [ test "formats early time in day without minutes" <|
                 \_ ->
                     let
-                        zone =
-                            Time.utc
-
                         start =
                             "2025-01-03T07:00:00"
 
                         end =
                             "2025-01-03T09:00:00"
                     in
-                    Expect.equal "7am until 9am" (Event.formatStartEndShort zone start end)
+                    Expect.equal "7am until 9am" (Event.formatStartEndShort start end)
             , test "formats early time in day with minutes" <|
                 \_ ->
                     let
-                        zone =
-                            Time.utc
-
                         start =
                             "2025-12-19T07:30:00"
 
@@ -187,13 +279,10 @@ suite =
                             "2025-12-19T09:30:00"
                     in
                     Expect.equal "7:30am until 9:30am"
-                        (Event.formatStartEndShort zone start end)
+                        (Event.formatStartEndShort start end)
             , test "formats early start afternoon end" <|
                 \_ ->
                     let
-                        zone =
-                            Time.utc
-
                         start =
                             "2025-03-25T09:00:00"
 
@@ -201,13 +290,10 @@ suite =
                             "2025-03-25T15:30:00"
                     in
                     Expect.equal "9am until 3:30pm"
-                        (Event.formatStartEndShort zone start end)
+                        (Event.formatStartEndShort start end)
             , test "formats evening time until late" <|
                 \_ ->
                     let
-                        zone =
-                            Time.utc
-
                         start =
                             "2025-03-25T19:00:00"
 
@@ -215,13 +301,10 @@ suite =
                             "2025-03-25T23:59:59"
                     in
                     Expect.equal "7pm until late"
-                        (Event.formatStartEndShort zone start end)
+                        (Event.formatStartEndShort start end)
             , test "gracefully handles start = end" <|
                 \_ ->
                     let
-                        zone =
-                            Time.utc
-
                         start =
                             "2025-03-25T19:00:00"
 
@@ -229,13 +312,10 @@ suite =
                             "2025-03-25T19:00:00"
                     in
                     Expect.equal "7pm"
-                        (Event.formatStartEndShort zone start end)
+                        (Event.formatStartEndShort start end)
             , test "gracefully handles invalid times" <|
                 \_ ->
                     let
-                        zone =
-                            Time.utc
-
                         start =
                             "mid-morning"
 
@@ -243,6 +323,6 @@ suite =
                             "after lunch"
                     in
                     Expect.equal "mid-morning until after lunch"
-                        (Event.formatStartEndShort zone start end)
+                        (Event.formatStartEndShort start end)
             ]
         ]
