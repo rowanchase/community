@@ -97,7 +97,7 @@ sampleEvents =
       , startTime = "2026-04-09T17:30:00"
       , endTime = "2026-04-09T23:59:59"
       , location = "Fryerstown Old School"
-      , rsvp = WithRsvp []
+      , rsvp = NoRsvp
       , imageUrl = Nothing
       }
     ]
@@ -128,8 +128,8 @@ isUpcoming now event =
             False
 
 
-posixToDateString : Time.Zone -> Time.Posix -> String
-posixToDateString zone posix =
+posixToDateString : Time.Posix -> String
+posixToDateString posix =
     DateFormat.format
         [ DateFormat.yearNumber
         , DateFormat.text "-"
@@ -137,7 +137,7 @@ posixToDateString zone posix =
         , DateFormat.text "-"
         , DateFormat.dayOfMonthFixed
         ]
-        zone
+        Time.utc
         posix
 
 
@@ -159,16 +159,68 @@ formatDateShort datetime =
             datetime
 
 
+formatTimeShort : Time.Zone -> Time.Posix -> String
+formatTimeShort zone posix =
+    let
+        hour =
+            DateFormat.format [ DateFormat.hourNumber ] zone posix
+
+        minute =
+            Time.toMinute zone posix
+
+        ampm =
+            DateFormat.format [ DateFormat.amPmLowercase ] zone posix
+
+        maybeMinutes =
+            if minute == 0 then
+                ""
+
+            else
+                ":" ++ String.padLeft 2 '0' (String.fromInt minute)
+    in
+    hour ++ maybeMinutes ++ ampm
+
+
+formatStartEndShort : String -> String -> String
+formatStartEndShort start end =
+    case ( Iso8601.toTime start, Iso8601.toTime end ) of
+        ( Ok startPosix, Ok endPosix ) ->
+            let
+                zone =
+                    Time.utc
+
+                isLate =
+                    Time.toHour zone endPosix == 23 && Time.toMinute zone endPosix == 59
+
+                isSameTime =
+                    Time.posixToMillis startPosix == Time.posixToMillis endPosix
+
+                isMultiDay =
+                    Time.toDay zone startPosix /= Time.toDay zone endPosix
+            in
+            if isLate then
+                formatTimeShort zone startPosix ++ " until late"
+
+            else if isSameTime || isMultiDay then
+                formatTimeShort zone startPosix
+
+            else
+                formatTimeShort zone startPosix ++ " until " ++ formatTimeShort zone endPosix
+
+        _ ->
+            start ++ " until " ++ end
+
+
 getEventEndDate : Event -> String
 getEventEndDate event =
     String.left 10 event.endTime
 
 
-upcomingEvents : Time.Zone -> Time.Posix -> List Event -> List Event
-upcomingEvents zone now events =
+upcomingEvents : Time.Posix -> List Event -> List Event
+upcomingEvents now events =
     let
         todayDate =
-            posixToDateString zone now
+            posixToDateString now
     in
     List.filter (\event -> getEventEndDate event >= todayDate) events
 
