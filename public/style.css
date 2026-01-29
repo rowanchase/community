@@ -187,6 +187,7 @@ body {
       border-radius: 25px;
       font-weight: 600;
       font-size: 0.85rem;
+      color: var(--ink);
       text-decoration: none;
       display: inline-block;
       cursor: pointer;
@@ -368,6 +369,16 @@ body {
     line-height: 1.8;
     padding-top: 1rem;
     border-top: 2px solid var(--orange-light);
+}
+
+.modal-rsvp-button-container {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+}
+
+.modal-rsvp-button-container .event-rsvp-button {
+    background-color: var(--red-light);
 }
 
 /* Form Styles */
