@@ -335,6 +335,14 @@ body {
     letter-spacing: 0.05em;
 }
 
+.modal-rsvp-count {
+    color: var(--ink-light);
+    font-size: 0.95rem;
+    font-weight: 400;
+    margin-top: 0.75rem;
+    font-style: italic;
+}
+
 .modal-body {
     padding: 2rem;
     border-top: 2px solid var(--red-light);
