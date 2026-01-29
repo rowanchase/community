@@ -197,6 +197,30 @@ update msg model =
             ( { model | modalOpen = Nothing }, Cmd.none )
 
 
+isRsvpFormValid : RsvpFormData -> Bool
+isRsvpFormValid formData =
+    let
+        hasValidName =
+            not (String.isEmpty (String.trim formData.fullName))
+
+        hasValidAdults =
+            case String.toInt formData.adults of
+                Just n ->
+                    n >= 0
+
+                Nothing ->
+                    False
+
+        hasValidChildren =
+            case String.toInt formData.children of
+                Just n ->
+                    n >= 0
+
+                Nothing ->
+                    False
+    in
+    hasValidName && hasValidAdults && hasValidChildren
+
 
 -- VIEW
 
@@ -414,6 +438,7 @@ viewRsvpModal event formData =
                     ]
                 , Html.button
                     [ Html.Attributes.class "form-submit-button"
+                    , Html.Attributes.disabled (not (isRsvpFormValid formData))
                     , onClick SubmitRsvp
                     ]
                     [ text "Submit RSVP" ]
