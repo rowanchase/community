@@ -1,6 +1,7 @@
 module EventTest exposing (..)
 
-import Event exposing (RsvpConfig(..))
+import Event
+import Rsvp exposing (RsvpConfig(..))
 import Expect
 import Fuzz exposing (..)
 import Fuzzers exposing (..)

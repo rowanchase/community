@@ -463,3 +463,14 @@ body {
         font-size: 1.5rem;
     }
 }
+
+.form-error {
+	margin-top: 1rem;
+	padding: 0.75rem 1rem;
+	background-color: var(--red-light);
+	border: 1px solid var(--red);
+	border-radius: 4px;
+	color: var(--red);
+	font-size: 0.9rem;
+	line-height: 1.5;
+}
