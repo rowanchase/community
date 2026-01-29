@@ -358,6 +358,74 @@ body {
     border-top: 2px solid var(--orange-light);
 }
 
+/* Form Styles */
+.form-field {
+    margin-bottom: 1.5rem;
+}
+
+.form-field:last-of-type {
+    margin-bottom: 2rem;
+}
+
+.form-label {
+    display: block;
+    color: var(--ink-medium);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--ink);
+    background-color: var(--paper);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--orange);
+    box-shadow: 0 0 0 3px rgba(201, 89, 54, 0.1);
+}
+
+.form-input::placeholder {
+    color: var(--ink-light);
+}
+
+.form-submit-button {
+    width: 100%;
+    padding: 0.9rem 2rem;
+    background-color: var(--orange-light);
+    color: var(--ink);
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    margin-top: 1rem;
+}
+
+.form-submit-button:hover {
+    background-color: var(--orange);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.form-submit-button:active {
+    transform: translateY(0);
+}
+
 /* Responsive modal */
 @media (max-width: 768px) {
     .modal-container {
