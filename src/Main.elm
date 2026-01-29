@@ -4,7 +4,9 @@ import Browser
 import Event exposing (Event)
 import Html exposing (Html, div, h1, text)
 import Html.Attributes
+import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Http
+import Iso8601
 import Json.Decode
 import Task
 import Time
@@ -49,6 +51,18 @@ type alias TownOrName =
     String
 
 
+type alias RsvpFormData =
+    { fullName : String
+    , adults : String
+    , children : String
+    }
+
+
+type ModalState
+    = EventModalOpen Event
+    | RsvpModalOpen Event RsvpFormData (Maybe Event)
+
+
 type alias Model =
     { events : RemoteData String (List Event)
     , time : Maybe Time.Posix
@@ -56,6 +70,7 @@ type alias Model =
     , townOrName : TownOrName
     , supabaseUrl : String
     , supabaseAnonKey : String
+    , modalOpen : Maybe ModalState
     }
 
 
@@ -67,6 +82,7 @@ init flags =
       , townOrName = "Fryerstown"
       , supabaseUrl = flags.supabaseUrl
       , supabaseAnonKey = flags.supabaseAnonKey
+      , modalOpen = Nothing
       }
     , Cmd.batch
         [ Task.perform ReceivedTime Time.now
@@ -80,10 +96,21 @@ init flags =
 -- UPDATE
 
 
+type RsvpField
+    = FullName
+    | Adults
+    | Children
+
+
 type Msg
     = ReceivedTime Time.Posix
     | ReceivedZone Time.Zone
     | GotEvents (Result Http.Error (List Event))
+    | OpenEventModal Event
+    | OpenRsvpModal Event
+    | CloseModal
+    | UpdateRsvpField RsvpField String
+    | SubmitRsvp
 
 
 fetchEvents : String -> String -> Cmd Msg
@@ -119,6 +146,57 @@ update msg model =
                 Err error ->
                     ( { model | events = Failure (httpErrorToString error) }, Cmd.none )
 
+        OpenEventModal event ->
+            ( { model | modalOpen = Just (EventModalOpen event) }, Cmd.none )
+
+        OpenRsvpModal event ->
+            let
+                emptyRsvpForm =
+                    { fullName = "", adults = "", children = "" }
+            in
+            case model.modalOpen of
+                Just (EventModalOpen openEvent) ->
+                    ( { model | modalOpen = Just (RsvpModalOpen event emptyRsvpForm (Just openEvent)) }, Cmd.none )
+
+                _ ->
+                    ( { model | modalOpen = Just (RsvpModalOpen event emptyRsvpForm Nothing) }, Cmd.none )
+
+        CloseModal ->
+            case model.modalOpen of
+                Just modal ->
+                    case modal of
+                        RsvpModalOpen _ _ (Just previousEvent) ->
+                            ( { model | modalOpen = Just (EventModalOpen previousEvent) }, Cmd.none )
+
+                        _ ->
+                            ( { model | modalOpen = Nothing }, Cmd.none )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        UpdateRsvpField field value ->
+            case model.modalOpen of
+                Just (RsvpModalOpen event formData previousEvent) ->
+                    let
+                        updatedFormData =
+                            case field of
+                                FullName ->
+                                    { formData | fullName = value }
+
+                                Adults ->
+                                    { formData | adults = value }
+
+                                Children ->
+                                    { formData | children = value }
+                    in
+                    ( { model | modalOpen = Just (RsvpModalOpen event updatedFormData previousEvent) }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        SubmitRsvp ->
+            ( { model | modalOpen = Nothing }, Cmd.none )
+
 
 
 -- VIEW
@@ -130,7 +208,8 @@ view model =
         ( Just t, Just z ) ->
             div [ Html.Attributes.class "app" ]
                 [ viewNavbar model.townOrName
-                , viewEventsRemoteData t z model.events
+                , viewEventsRemoteData t model.events
+                , viewModal t model.modalOpen
                 ]
 
         _ ->
@@ -150,14 +229,14 @@ viewNavbar townOrName =
         ]
 
 
-viewEventsRemoteData : Time.Posix -> Time.Zone -> RemoteData String (List Event) -> Html Msg
-viewEventsRemoteData now zone remoteData =
+viewEventsRemoteData : Time.Posix -> RemoteData String (List Event) -> Html Msg
+viewEventsRemoteData now remoteData =
     case remoteData of
         Loading ->
             div [ Html.Attributes.class "loading" ] [ text "Loading events..." ]
 
         Success events ->
-            viewEventList now zone events
+            viewEventList now events
 
         Failure error ->
             div [ Html.Attributes.class "error" ]
@@ -166,11 +245,11 @@ viewEventsRemoteData now zone remoteData =
                 ]
 
 
-viewEventList : Time.Posix -> Time.Zone -> List Event -> Html Msg
-viewEventList now zone events =
+viewEventList : Time.Posix -> List Event -> Html Msg
+viewEventList now events =
     let
         upcomingEvents =
-            Event.upcomingEvents zone now events
+            Event.upcomingEvents now events
                 |> Event.sortByStartTime
     in
     div [ Html.Attributes.class "event-list" ]
@@ -179,12 +258,132 @@ viewEventList now zone events =
 
 viewEventCard : Event -> Html Msg
 viewEventCard event =
-    div [ Html.Attributes.class "event-card" ]
+    div
+        [ Html.Attributes.class "event-card"
+        , onClick (OpenEventModal event)
+        ]
         [ div [ Html.Attributes.class "event-date-box" ]
             [ text (Event.formatDateShort event.startTime) ]
         , div [ Html.Attributes.class "event-content" ]
             [ h1 [ Html.Attributes.class "event-title" ] [ text event.title ]
-            , div [ Html.Attributes.class "event-description" ] [ text event.description ]
+            , div [ Html.Attributes.class "event-time" ]
+                [ text (Event.formatStartEndShort event.startTime event.endTime) ]
+            , div [ Html.Attributes.class "event-rsvp" ]
+                [ viewRsvpButton event ]
+            ]
+        ]
+
+
+viewRsvpButton : Event -> Html Msg
+viewRsvpButton event =
+    case event.rsvp of
+        Event.NoRsvp ->
+            Html.button
+                [ Html.Attributes.class "event-rsvp-button"
+                , onClick (OpenEventModal event)
+                ]
+                [ text "All Welcome!" ]
+
+        Event.WithRsvp _ ->
+            Html.button
+                [ Html.Attributes.class "event-rsvp-button"
+                , onClick (OpenRsvpModal event)
+                ]
+                [ text "RSVP" ]
+
+        Event.ExternalRsvp url ->
+            Html.a
+                [ Html.Attributes.href url
+                , Html.Attributes.target "_blank" -- opens in new tab
+                , Html.Attributes.class "event-rsvp-button"
+                ]
+                [ text "Get Tickets" ]
+
+
+viewModal : Time.Posix -> Maybe ModalState -> Html Msg
+viewModal now maybeModal =
+    case maybeModal of
+        Nothing ->
+            text ""
+
+        -- No modal open, render nothing
+        Just (EventModalOpen event) ->
+            viewEventModal event
+
+        Just (RsvpModalOpen event formData _) ->
+            viewRsvpModal event formData
+
+
+viewEventModal : Event -> Html Msg
+viewEventModal event =
+    div [ Html.Attributes.class "modal-backdrop", onClick CloseModal ]
+        [ div
+            [ Html.Attributes.class "modal-container"
+            , stopPropagationOn "click" (Json.Decode.succeed ( CloseModal, True ))
+            ]
+            [ -- Close button in top right
+              Html.button
+                [ Html.Attributes.class "modal-close-button"
+                , onClick CloseModal
+                ]
+                [ text "×" ]
+
+            -- Event details
+            , div [ Html.Attributes.class "modal-header" ]
+                [ h1 [ Html.Attributes.class "modal-title" ] [ text event.title ]
+                , div [ Html.Attributes.class "modal-date" ]
+                    [ text (Event.formatDateShort event.startTime) ]
+                ]
+
+            , div [ Html.Attributes.class "modal-body" ]
+                [ div [ Html.Attributes.class "modal-time" ]
+                    [ Html.strong [] [ text "When: " ]
+                    , text (Event.formatStartEndShort event.startTime event.endTime)
+                    ]
+                , div [ Html.Attributes.class "modal-location" ]
+                    [ Html.strong [] [ text "Where: " ]
+                    , text event.location
+                    ]
+                , div [ Html.Attributes.class "modal-description" ]
+                    [ text event.description ]
+                ]
+            ]
+        ]
+
+
+viewRsvpModal : Event -> RsvpFormData -> Html Msg
+viewRsvpModal event formData =
+    div [ Html.Attributes.class "modal-backdrop", onClick CloseModal ]
+        [ div [ Html.Attributes.class "modal-container" ]
+            [ div [] [ text "Close X" ]
+            , h1 [] [ text ("RSVP for " ++ event.title) ]
+            , div []
+                [ div []
+                    [ text "Full Name:"
+                    , Html.input
+                        [ Html.Attributes.value formData.fullName
+                        , onInput (UpdateRsvpField FullName)
+                        ]
+                        []
+                    ]
+                , div []
+                    [ text "Adults:"
+                    , Html.input
+                        [ Html.Attributes.value formData.adults
+                        , onInput (UpdateRsvpField Adults)
+                        ]
+                        []
+                    ]
+                , div []
+                    [ text "Children:"
+                    , Html.input
+                        [ Html.Attributes.value formData.children
+                        , onInput (UpdateRsvpField Children)
+                        ]
+                        []
+                    ]
+                , Html.button [ onClick SubmitRsvp ] [ text "Submit RSVP" ]
+                ]
             ]
         ]
 
