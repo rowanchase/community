@@ -93,11 +93,11 @@ suite =
             , test "returns message when count is 2" <|
                 \_ ->
                     formatCountMessage 2
-                        |> Expect.equal (Just "2 people are coming so far!")
+                        |> Expect.equal (Just "2 people have RSVP'd")
             , test "returns message when count is 15" <|
                 \_ ->
                     formatCountMessage 15
-                        |> Expect.equal (Just "15 people are coming so far!")
+                        |> Expect.equal (Just "15 people have RSVP'd")
             , fuzz (Fuzz.intRange 2 1000) "always returns message for count >= 2" <|
                 \count ->
                     formatCountMessage count
