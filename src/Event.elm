@@ -2,6 +2,7 @@ module Event exposing (..)
 
 import DateFormat
 import Iso8601
+import Json.Decode
 import Time
 
 
@@ -41,10 +42,11 @@ type RsvpConfig
 
 
 type alias Event =
-    { title : String
+    { id : String
+    , title : String
     , description : String
-    , start : DateTime
-    , end : DateTime
+    , startTime : DateTime
+    , endTime : DateTime
     , location : Location
     , imageUrl : Maybe Url
     , rsvp : RsvpConfig
@@ -53,42 +55,47 @@ type alias Event =
 
 sampleEvents : List Event
 sampleEvents =
-    [ { title = "Christmas Frolic"
+    [ { id = "1"
+      , title = "Christmas Frolic"
       , description = "Annua Fryerstown Christmas celebration with Santa, food and music"
-      , start = "2025-12-19T11:00:00"
-      , end = "2025-12-19T15:00:00"
+      , startTime = "2025-12-19T11:00:00"
+      , endTime = "2025-12-19T15:00:00"
       , location = "Fryerstown Old School"
       , rsvp = WithRsvp []
       , imageUrl = Nothing
       }
-    , { title = "CFA Open Day"
+    , { id = "2"
+      , title = "CFA Open Day"
       , description = "Chance for the community to come see the CFA building, fire trucks and meet your local CFA members"
-      , start = "2025-01-15T13:00:00"
-      , end = "2025-01-15T14:00:00"
+      , startTime = "2025-01-15T13:00:00"
+      , endTime = "2025-01-15T14:00:00"
       , location = "Fryerstown CFA Building"
       , rsvp = NoRsvp
       , imageUrl = Nothing
       }
-    , { title = "Car boot Sale"
+    , { id = "3"
+      , title = "Car boot Sale"
       , description = "Annual Fryerstown Car boot sale"
-      , start = "2026-03-03T10:00:00"
-      , end = "2026-03-03T15:30:00"
+      , startTime = "2026-03-03T10:00:00"
+      , endTime = "2026-03-03T15:30:00"
       , location = "Fryerstown Old School"
       , rsvp = ExternalRsvp "someticketinglink"
       , imageUrl = Nothing
       }
-    , { title = "Jim Cole's Birthday"
+    , { id = "4"
+      , title = "Jim Cole's Birthday"
       , description = "Jim Cole is turning 90!"
-      , start = "2026-01-01T15:00:00"
-      , end = "2026-01-01T23:59:59"
+      , startTime = "2026-01-01T15:00:00"
+      , endTime = "2026-01-01T23:59:59"
       , location = "Fryerstown Old School"
       , rsvp = WithRsvp []
       , imageUrl = Nothing
       }
-    , { title = "Rowan's Birthday"
+    , { id = "5"
+      , title = "Rowan's Birthday"
       , description = "Rowan isn't turning 90 yet"
-      , start = "2026-04-09T17:30:00"
-      , end = "2026-04-09T23:59:59"
+      , startTime = "2026-04-09T17:30:00"
+      , endTime = "2026-04-09T23:59:59"
       , location = "Fryerstown Old School"
       , rsvp = WithRsvp []
       , imageUrl = Nothing
@@ -98,7 +105,7 @@ sampleEvents =
 
 compareByStartTime : Event -> Event -> Order
 compareByStartTime event1 event2 =
-    case ( Iso8601.toTime event1.start, Iso8601.toTime event2.start ) of
+    case ( Iso8601.toTime event1.startTime, Iso8601.toTime event2.startTime ) of
         ( Ok posix1, Ok posix2 ) ->
             compare (Time.posixToMillis posix1) (Time.posixToMillis posix2)
 
@@ -113,7 +120,7 @@ sortByStartTime events =
 
 isUpcoming : Time.Posix -> Event -> Bool
 isUpcoming now event =
-    case Iso8601.toTime event.start of
+    case Iso8601.toTime event.startTime of
         Ok eventStart ->
             Time.posixToMillis eventStart >= Time.posixToMillis now
 
@@ -134,8 +141,8 @@ posixToDateString zone posix =
         posix
 
 
-formatDateShort : Time.Zone -> String -> String
-formatDateShort zone datetime =
+formatDateShort : String -> String
+formatDateShort datetime =
     case Iso8601.toTime datetime of
         Ok posix ->
             String.toUpper
@@ -144,7 +151,7 @@ formatDateShort zone datetime =
                     , DateFormat.text " "
                     , DateFormat.monthNameAbbreviated
                     ]
-                    zone
+                    Time.utc
                     posix
                 )
 
@@ -154,7 +161,7 @@ formatDateShort zone datetime =
 
 getEventEndDate : Event -> String
 getEventEndDate event =
-    String.left 10 event.end
+    String.left 10 event.endTime
 
 
 upcomingEvents : Time.Zone -> Time.Posix -> List Event -> List Event
@@ -164,3 +171,16 @@ upcomingEvents zone now events =
             posixToDateString zone now
     in
     List.filter (\event -> getEventEndDate event >= todayDate) events
+
+
+eventDecoder : Json.Decode.Decoder Event
+eventDecoder =
+    Json.Decode.map8 Event
+        (Json.Decode.field "id" Json.Decode.string)
+        (Json.Decode.field "title" Json.Decode.string)
+        (Json.Decode.field "description" Json.Decode.string)
+        (Json.Decode.field "start_time" Json.Decode.string)
+        (Json.Decode.field "end_time" Json.Decode.string)
+        (Json.Decode.field "location" Json.Decode.string)
+        (Json.Decode.field "image_url" (Json.Decode.nullable Json.Decode.string))
+        (Json.Decode.succeed NoRsvp)

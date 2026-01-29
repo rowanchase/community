@@ -20,17 +20,19 @@ startAndEnd =
 
 event : Fuzzer Event
 event =
-    Fuzz.map6
-        (\( start, end ) title description location imageUrl rsvpCfg ->
-            { title = title
+    Fuzz.map7
+        (\id ( startTime, endTime ) title description location imageUrl rsvpCfg ->
+            { id = id
+            , title = title
             , description = description
-            , start = start
-            , end = end
+            , startTime = startTime
+            , endTime = endTime
             , location = location
             , imageUrl = imageUrl
             , rsvp = rsvpCfg
             }
         )
+        Fuzz.string
         startAndEnd
         Fuzz.string
         Fuzz.string

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Fryerstown Community Calendar</title>
+      <link rel="stylesheet" href="/public/style.css">
+  </head>
+  <body>
+      <div id="app"></div>
+      <script type="module">
+        // Import Elm source - Vite will compile it
+        import { Elm } from './src/Main.elm'
+
+        // Initialize Elm app with environment variables as flags
+        const app = Elm.Main.init({
+          node: document.getElementById('app'),
+          flags: {
+            supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+            supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
+          }
+        });
+      </script>
+  </body>
+</html>

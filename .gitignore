@@ -4,3 +4,15 @@ public/elm.js
 .mcp.json
 CLAUDE.md
 docs/roadmap.md
+
+# Environment variables
+.env
+
+# Vite
+dist/
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+supabase/snippets/
+elm.js

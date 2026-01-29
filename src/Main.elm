@@ -1,11 +1,11 @@
 module Main exposing (Model, Msg(..), main, update)
 
 import Browser
-import DateFormat
-import Event exposing (Event, sampleEvents)
+import Event exposing (Event)
 import Html exposing (Html, div, h1, text)
 import Html.Attributes
-import Iso8601
+import Http
+import Json.Decode
 import Task
 import Time
 
@@ -14,28 +14,64 @@ import Time
 -- MODEL
 
 
+type alias Flags =
+    { supabaseUrl : String
+    , supabaseAnonKey : String
+    }
+
+
+type RemoteData error data
+    = Loading
+    | Success data
+    | Failure error
+
+
+httpErrorToString : Http.Error -> String
+httpErrorToString error =
+    case error of
+        Http.BadUrl url ->
+            "Invalid URL: " ++ url
+
+        Http.Timeout ->
+            "Request timed out"
+
+        Http.NetworkError ->
+            "Network error - check your connection"
+
+        Http.BadStatus status ->
+            "Server returned error: " ++ String.fromInt status
+
+        Http.BadBody message ->
+            "Failed to decode response: " ++ message
+
+
 type alias TownOrName =
     String
 
 
 type alias Model =
-    { events : List Event
+    { events : RemoteData String (List Event)
     , time : Maybe Time.Posix
     , zone : Maybe Time.Zone
     , townOrName : TownOrName
+    , supabaseUrl : String
+    , supabaseAnonKey : String
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( { events = sampleEvents
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    ( { events = Loading
       , time = Nothing
       , zone = Nothing
       , townOrName = "Fryerstown"
+      , supabaseUrl = flags.supabaseUrl
+      , supabaseAnonKey = flags.supabaseAnonKey
       }
     , Cmd.batch
         [ Task.perform ReceivedTime Time.now
         , Task.perform ReceivedZone Time.here
+        , fetchEvents flags.supabaseUrl flags.supabaseAnonKey
         ]
     )
 
@@ -47,6 +83,23 @@ init _ =
 type Msg
     = ReceivedTime Time.Posix
     | ReceivedZone Time.Zone
+    | GotEvents (Result Http.Error (List Event))
+
+
+fetchEvents : String -> String -> Cmd Msg
+fetchEvents supabaseUrl supabaseAnonKey =
+    Http.request
+        { method = "GET"
+        , headers =
+            [ Http.header "apikey" supabaseAnonKey
+            , Http.header "Authorization" ("Bearer " ++ supabaseAnonKey)
+            ]
+        , url = supabaseUrl ++ "/rest/v1/events?select=*"
+        , body = Http.emptyBody
+        , expect = Http.expectJson GotEvents (Json.Decode.list Event.eventDecoder)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -57,6 +110,14 @@ update msg model =
 
         ReceivedZone zone ->
             ( { model | zone = Just zone }, Cmd.none )
+
+        GotEvents result ->
+            case result of
+                Ok events ->
+                    ( { model | events = Success events }, Cmd.none )
+
+                Err error ->
+                    ( { model | events = Failure (httpErrorToString error) }, Cmd.none )
 
 
 
@@ -69,7 +130,7 @@ view model =
         ( Just t, Just z ) ->
             div [ Html.Attributes.class "app" ]
                 [ viewNavbar model.townOrName
-                , viewEventList t z model.events
+                , viewEventsRemoteData t z model.events
                 ]
 
         _ ->
@@ -89,6 +150,22 @@ viewNavbar townOrName =
         ]
 
 
+viewEventsRemoteData : Time.Posix -> Time.Zone -> RemoteData String (List Event) -> Html Msg
+viewEventsRemoteData now zone remoteData =
+    case remoteData of
+        Loading ->
+            div [ Html.Attributes.class "loading" ] [ text "Loading events..." ]
+
+        Success events ->
+            viewEventList now zone events
+
+        Failure error ->
+            div [ Html.Attributes.class "error" ]
+                [ text "Failed to load events: "
+                , text error
+                ]
+
+
 viewEventList : Time.Posix -> Time.Zone -> List Event -> Html Msg
 viewEventList now zone events =
     let
@@ -97,14 +174,14 @@ viewEventList now zone events =
                 |> Event.sortByStartTime
     in
     div [ Html.Attributes.class "event-list" ]
-        (List.map (viewEventCard zone) upcomingEvents)
+        (List.map viewEventCard upcomingEvents)
 
 
-viewEventCard : Time.Zone -> Event -> Html Msg
-viewEventCard zone event =
+viewEventCard : Event -> Html Msg
+viewEventCard event =
     div [ Html.Attributes.class "event-card" ]
         [ div [ Html.Attributes.class "event-date-box" ]
-            [ text (Event.formatDateShort zone event.start) ]
+            [ text (Event.formatDateShort event.startTime) ]
         , div [ Html.Attributes.class "event-content" ]
             [ h1 [ Html.Attributes.class "event-title" ] [ text event.title ]
             , div [ Html.Attributes.class "event-description" ] [ text event.description ]
@@ -116,7 +193,7 @@ viewEventCard zone event =
 -- MAIN
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.element
         { init = init
