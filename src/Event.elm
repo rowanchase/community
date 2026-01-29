@@ -36,7 +36,8 @@ type alias Rsvp =
 
 
 type RsvpConfig
-    = NoRsvp
+    = NoAttendance
+    | NoRsvp
     | WithRsvp (List Rsvp)
     | ExternalRsvp Url
 

@@ -97,7 +97,7 @@ suite =
                         [ yesterdayEvent, todayEvent, multiDayEvent, futureEvent ]
 
                     result =
-                        Event.upcomingEvents zone now allEvents
+                        Event.upcomingEvents now allEvents
                 in
                 result
                     |> List.map .title

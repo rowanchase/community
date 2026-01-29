@@ -6,7 +6,6 @@ import Html exposing (Html, div, h1, text)
 import Html.Attributes
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Http
-import Iso8601
 import Json.Decode
 import Task
 import Time
@@ -205,7 +204,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     case ( model.time, model.zone ) of
-        ( Just t, Just z ) ->
+        ( Just t, Just _ ) ->
             div [ Html.Attributes.class "app" ]
                 [ viewNavbar model.townOrName
                 , viewEventsRemoteData t model.events
@@ -277,6 +276,13 @@ viewEventCard event =
 viewRsvpButton : Event -> Html Msg
 viewRsvpButton event =
     case event.rsvp of
+        Event.NoAttendance ->
+            Html.button
+                [ Html.Attributes.class "event-rsvp-button"
+                , onClick (OpenEventModal event)
+                ]
+                [ text "See Details" ]
+
         Event.NoRsvp ->
             Html.button
                 [ Html.Attributes.class "event-rsvp-button"
@@ -334,7 +340,6 @@ viewEventModal event =
                 , div [ Html.Attributes.class "modal-date" ]
                     [ text (Event.formatDateShort event.startTime) ]
                 ]
-
             , div [ Html.Attributes.class "modal-body" ]
                 [ div [ Html.Attributes.class "modal-time" ]
                     [ Html.strong [] [ text "When: " ]
