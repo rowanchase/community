@@ -3,6 +3,7 @@ module Fuzzers exposing (..)
 import Event exposing (DateTime, Event)
 import Fuzz exposing (Fuzzer)
 import Rsvp exposing (Rsvp, RsvpConfig(..))
+import RsvpCount exposing (RsvpCount)
 
 
 startAndEnd : Fuzzer ( DateTime, DateTime )
@@ -59,6 +60,24 @@ rsvpConfig =
         , Fuzz.map WithRsvp (Fuzz.list rsvp)
         , Fuzz.map ExternalRsvp Fuzz.string
         ]
+
+
+rsvpCount : Fuzzer RsvpCount
+rsvpCount =
+    Fuzz.map5
+        (\eventId rsvpCnt adultCnt childrenCnt peopleCnt ->
+            { eventId = eventId
+            , rsvpCount = rsvpCnt
+            , adultCount = adultCnt
+            , childrenCount = childrenCnt
+            , peopleCount = peopleCnt
+            }
+        )
+        Fuzz.string
+        (Fuzz.intRange 0 100)
+        (Fuzz.intRange 0 100)
+        (Fuzz.intRange 0 100)
+        (Fuzz.intRange 0 200)
 
 
 dateTime : Fuzzer String

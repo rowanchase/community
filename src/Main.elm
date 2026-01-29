@@ -1,6 +1,7 @@
 module Main exposing (Model, Msg(..), main, update)
 
 import Browser
+import Dict
 import Event exposing (Event)
 import Html exposing (Html, div, h1, text)
 import Html.Attributes
@@ -8,6 +9,7 @@ import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Http
 import Json.Decode
 import Rsvp exposing (RsvpFormData)
+import RsvpCount exposing (RsvpCounts)
 import Task
 import Time
 
@@ -59,6 +61,7 @@ type ModalState
 
 type alias Model =
     { events : RemoteData String (List Event)
+    , rsvpCounts : RemoteData String RsvpCounts
     , time : Maybe Time.Posix
     , zone : Maybe Time.Zone
     , townOrName : TownOrName
@@ -71,6 +74,7 @@ type alias Model =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { events = Loading
+      , rsvpCounts = Loading
       , time = Nothing
       , zone = Nothing
       , townOrName = "Fryerstown"
@@ -82,6 +86,7 @@ init flags =
         [ Task.perform ReceivedTime Time.now
         , Task.perform ReceivedZone Time.here
         , fetchEvents flags.supabaseUrl flags.supabaseAnonKey
+        , fetchRsvpCounts flags.supabaseUrl flags.supabaseAnonKey
         ]
     )
 
@@ -100,6 +105,7 @@ type Msg
     = ReceivedTime Time.Posix
     | ReceivedZone Time.Zone
     | GotEvents (Result Http.Error (List Event))
+    | GotRsvpCounts (Result Http.Error RsvpCounts)
     | OpenEventModal Event
     | OpenRsvpModal Event
     | CloseModal
@@ -119,6 +125,22 @@ fetchEvents supabaseUrl supabaseAnonKey =
         , url = supabaseUrl ++ "/rest/v1/events?select=*"
         , body = Http.emptyBody
         , expect = Http.expectJson GotEvents (Json.Decode.list Event.eventDecoder)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+fetchRsvpCounts : String -> String -> Cmd Msg
+fetchRsvpCounts supabaseUrl supabaseAnonKey =
+    Http.request
+        { method = "GET"
+        , headers =
+            [ Http.header "apikey" supabaseAnonKey
+            , Http.header "Authorization" ("Bearer " ++ supabaseAnonKey)
+            ]
+        , url = supabaseUrl ++ "/rest/v1/event_rsvp_counts?select=*"
+        , body = Http.emptyBody
+        , expect = Http.expectJson GotRsvpCounts RsvpCount.rsvpCountsDecoder
         , timeout = Nothing
         , tracker = Nothing
         }
@@ -158,6 +180,15 @@ update msg model =
 
                 Err error ->
                     ( { model | events = Failure (httpErrorToString error) }, Cmd.none )
+
+        GotRsvpCounts result ->
+            case result of
+                Ok counts ->
+                    ( { model | rsvpCounts = Success counts }, Cmd.none )
+
+                Err error ->
+                    -- Silently fail - counts are non-critical
+                    ( { model | rsvpCounts = Failure (httpErrorToString error) }, Cmd.none )
 
         OpenEventModal event ->
             ( { model | modalOpen = Just (EventModalOpen event) }, Cmd.none )
@@ -250,10 +281,19 @@ view : Model -> Html Msg
 view model =
     case ( model.time, model.zone ) of
         ( Just t, Just _ ) ->
+            let
+                counts =
+                    case model.rsvpCounts of
+                        Success c ->
+                            c
+
+                        _ ->
+                            Dict.empty
+            in
             div [ Html.Attributes.class "app" ]
                 [ viewNavbar model.townOrName
                 , viewEventsRemoteData t model.events
-                , viewModal t model.modalOpen
+                , viewModal t counts model.modalOpen
                 ]
 
         _ ->
@@ -354,22 +394,29 @@ viewRsvpButton event =
                 [ text "Get Tickets" ]
 
 
-viewModal : Time.Posix -> Maybe ModalState -> Html Msg
-viewModal now maybeModal =
+viewModal : Time.Posix -> RsvpCounts -> Maybe ModalState -> Html Msg
+viewModal now rsvpCounts maybeModal =
     case maybeModal of
         -- No modal open, render nothing
         Nothing ->
             text ""
 
         Just (EventModalOpen event) ->
-            viewEventModal event
+            viewEventModal rsvpCounts event
 
         Just (RsvpModalOpen event formData _ submissionState) ->
             viewRsvpModal event formData submissionState
 
 
-viewEventModal : Event -> Html Msg
-viewEventModal event =
+viewEventModal : RsvpCounts -> Event -> Html Msg
+viewEventModal rsvpCounts event =
+    let
+        count =
+            RsvpCount.getCountForEvent event.id rsvpCounts
+
+        maybeCountMessage =
+            RsvpCount.formatCountMessage count
+    in
     div [ Html.Attributes.class "modal-backdrop", onClick CloseModal ]
         [ div
             [ Html.Attributes.class "modal-container"
@@ -387,6 +434,13 @@ viewEventModal event =
                 [ h1 [ Html.Attributes.class "modal-title" ] [ text event.title ]
                 , div [ Html.Attributes.class "modal-date" ]
                     [ text (Event.formatDateShort event.startTime) ]
+                , case maybeCountMessage of
+                    Just message ->
+                        div [ Html.Attributes.class "modal-rsvp-count" ]
+                            [ text message ]
+
+                    Nothing ->
+                        text ""
                 ]
             , div [ Html.Attributes.class "modal-body" ]
                 [ div [ Html.Attributes.class "modal-time" ]
