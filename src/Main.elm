@@ -257,10 +257,14 @@ update msg model =
                 Ok () ->
                     case model.modalOpen of
                         Just (RsvpModalOpen _ _ (Just previousEvent) _) ->
-                            ( { model | modalOpen = Just (EventModalOpen previousEvent) }, Cmd.none )
+                            ( { model | modalOpen = Just (EventModalOpen previousEvent) }
+                            , fetchRsvpCounts model.supabaseUrl model.supabaseAnonKey
+                            )
 
                         _ ->
-                            ( { model | modalOpen = Nothing }, Cmd.none )
+                            ( { model | modalOpen = Nothing }
+                            , fetchRsvpCounts model.supabaseUrl model.supabaseAnonKey
+                            )
 
                 Err error ->
                     case model.modalOpen of
