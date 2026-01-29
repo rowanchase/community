@@ -3,18 +3,11 @@ module Event exposing (..)
 import DateFormat
 import Iso8601
 import Json.Decode
+import Rsvp exposing (RsvpConfig, rsvpConfigDecoder)
 import Time
 
 
 type alias Url =
-    String
-
-
-type alias PhoneNumber =
-    String
-
-
-type alias EmailAddress =
     String
 
 
@@ -24,22 +17,6 @@ type alias DateTime =
 
 type alias Location =
     String
-
-
-type alias Rsvp =
-    { fullName : String
-    , phone : Maybe PhoneNumber
-    , email : Maybe EmailAddress
-    , adults : Int
-    , children : Int
-    }
-
-
-type RsvpConfig
-    = NoAttendance
-    | NoRsvp
-    | WithRsvp (List Rsvp)
-    | ExternalRsvp Url
 
 
 type alias Event =
@@ -62,7 +39,7 @@ sampleEvents =
       , startTime = "2025-12-19T11:00:00"
       , endTime = "2025-12-19T15:00:00"
       , location = "Fryerstown Old School"
-      , rsvp = WithRsvp []
+      , rsvp = Rsvp.WithRsvp []
       , imageUrl = Nothing
       }
     , { id = "2"
@@ -71,7 +48,7 @@ sampleEvents =
       , startTime = "2025-01-15T13:00:00"
       , endTime = "2025-01-15T14:00:00"
       , location = "Fryerstown CFA Building"
-      , rsvp = NoRsvp
+      , rsvp = Rsvp.NoRsvp
       , imageUrl = Nothing
       }
     , { id = "3"
@@ -80,7 +57,7 @@ sampleEvents =
       , startTime = "2026-03-03T10:00:00"
       , endTime = "2026-03-03T15:30:00"
       , location = "Fryerstown Old School"
-      , rsvp = ExternalRsvp "someticketinglink"
+      , rsvp = Rsvp.ExternalRsvp "someticketinglink"
       , imageUrl = Nothing
       }
     , { id = "4"
@@ -89,7 +66,7 @@ sampleEvents =
       , startTime = "2026-01-01T15:00:00"
       , endTime = "2026-01-01T23:59:59"
       , location = "Fryerstown Old School"
-      , rsvp = WithRsvp []
+      , rsvp = Rsvp.WithRsvp []
       , imageUrl = Nothing
       }
     , { id = "5"
@@ -98,7 +75,7 @@ sampleEvents =
       , startTime = "2026-04-09T17:30:00"
       , endTime = "2026-04-09T23:59:59"
       , location = "Fryerstown Old School"
-      , rsvp = NoRsvp
+      , rsvp = Rsvp.NoRsvp
       , imageUrl = Nothing
       }
     ]
@@ -224,32 +201,6 @@ upcomingEvents now events =
             posixToDateString now
     in
     List.filter (\event -> getEventEndDate event >= todayDate) events
-
-
-rsvpConfigDecoder : Json.Decode.Decoder RsvpConfig
-rsvpConfigDecoder =
-    Json.Decode.field "rsvp_type" Json.Decode.string
-        |> Json.Decode.andThen rsvpConfigFromString
-
-
-rsvpConfigFromString : String -> Json.Decode.Decoder RsvpConfig
-rsvpConfigFromString rsvpType =
-    case rsvpType of
-        "no_attendance" ->
-            Json.Decode.succeed NoAttendance
-
-        "no_rsvp" ->
-            Json.Decode.succeed NoRsvp
-
-        "external_rsvp" ->
-            Json.Decode.map ExternalRsvp
-                (Json.Decode.field "external_rsvp_url" Json.Decode.string)
-
-        "with_rsvp" ->
-            Json.Decode.succeed (WithRsvp [])
-
-        _ ->
-            Json.Decode.fail ("Unknown rsvp_type: " ++ rsvpType)
 
 
 eventDecoder : Json.Decode.Decoder Event

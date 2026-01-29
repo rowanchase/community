@@ -7,6 +7,7 @@ import Html.Attributes
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Http
 import Json.Decode
+import Rsvp exposing (RsvpFormData)
 import Task
 import Time
 
@@ -22,7 +23,8 @@ type alias Flags =
 
 
 type RemoteData error data
-    = Loading
+    = NotAsked
+    | Loading
     | Success data
     | Failure error
 
@@ -50,16 +52,9 @@ type alias TownOrName =
     String
 
 
-type alias RsvpFormData =
-    { fullName : String
-    , adults : String
-    , children : String
-    }
-
-
 type ModalState
     = EventModalOpen Event
-    | RsvpModalOpen Event RsvpFormData (Maybe Event)
+    | RsvpModalOpen Event RsvpFormData (Maybe Event) (RemoteData String ())
 
 
 type alias Model =
@@ -110,6 +105,7 @@ type Msg
     | CloseModal
     | UpdateRsvpField RsvpField String
     | SubmitRsvp
+    | GotRsvpSubmissionResult (Result Http.Error ())
 
 
 fetchEvents : String -> String -> Cmd Msg
@@ -123,6 +119,24 @@ fetchEvents supabaseUrl supabaseAnonKey =
         , url = supabaseUrl ++ "/rest/v1/events?select=*"
         , body = Http.emptyBody
         , expect = Http.expectJson GotEvents (Json.Decode.list Event.eventDecoder)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+submitRsvp : String -> String -> String -> Rsvp.RsvpFormData -> Cmd Msg
+submitRsvp supabaseUrl supabaseAnonKey eventId formData =
+    Http.request
+        { method = "POST"
+        , headers =
+            [ Http.header "apikey" supabaseAnonKey
+            , Http.header "Authorization" ("Bearer " ++ supabaseAnonKey)
+            , Http.header "Content-Type" "application/json"
+            , Http.header "Prefer" "return=minimal"
+            ]
+        , url = supabaseUrl ++ "/rest/v1/rsvps"
+        , body = Http.jsonBody (Rsvp.encodeRsvp eventId formData)
+        , expect = Http.expectWhatever GotRsvpSubmissionResult
         , timeout = Nothing
         , tracker = Nothing
         }
@@ -155,16 +169,16 @@ update msg model =
             in
             case model.modalOpen of
                 Just (EventModalOpen openEvent) ->
-                    ( { model | modalOpen = Just (RsvpModalOpen event emptyRsvpForm (Just openEvent)) }, Cmd.none )
+                    ( { model | modalOpen = Just (RsvpModalOpen event emptyRsvpForm (Just openEvent) NotAsked) }, Cmd.none )
 
                 _ ->
-                    ( { model | modalOpen = Just (RsvpModalOpen event emptyRsvpForm Nothing) }, Cmd.none )
+                    ( { model | modalOpen = Just (RsvpModalOpen event emptyRsvpForm Nothing NotAsked) }, Cmd.none )
 
         CloseModal ->
             case model.modalOpen of
                 Just modal ->
                     case modal of
-                        RsvpModalOpen _ _ (Just previousEvent) ->
+                        RsvpModalOpen _ _ (Just previousEvent) _ ->
                             ( { model | modalOpen = Just (EventModalOpen previousEvent) }, Cmd.none )
 
                         _ ->
@@ -175,7 +189,7 @@ update msg model =
 
         UpdateRsvpField field value ->
             case model.modalOpen of
-                Just (RsvpModalOpen event formData previousEvent) ->
+                Just (RsvpModalOpen event formData previousEvent submissionState) ->
                     let
                         updatedFormData =
                             case field of
@@ -188,38 +202,45 @@ update msg model =
                                 Children ->
                                     { formData | children = value }
                     in
-                    ( { model | modalOpen = Just (RsvpModalOpen event updatedFormData previousEvent) }, Cmd.none )
+                    ( { model | modalOpen = Just (RsvpModalOpen event updatedFormData previousEvent submissionState) }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         SubmitRsvp ->
-            ( { model | modalOpen = Nothing }, Cmd.none )
+            case model.modalOpen of
+                Just (RsvpModalOpen event formData previousEvent _) ->
+                    if Rsvp.isRsvpFormValid formData then
+                        ( { model | modalOpen = Just (RsvpModalOpen event formData previousEvent Loading) }
+                        , submitRsvp model.supabaseUrl model.supabaseAnonKey event.id formData
+                        )
 
+                    else
+                        ( model, Cmd.none )
 
-isRsvpFormValid : RsvpFormData -> Bool
-isRsvpFormValid formData =
-    let
-        hasValidName =
-            not (String.isEmpty (String.trim formData.fullName))
+                _ ->
+                    ( model, Cmd.none )
 
-        hasValidAdults =
-            case String.toInt formData.adults of
-                Just n ->
-                    n >= 0
+        GotRsvpSubmissionResult result ->
+            case result of
+                Ok () ->
+                    case model.modalOpen of
+                        Just (RsvpModalOpen _ _ (Just previousEvent) _) ->
+                            ( { model | modalOpen = Just (EventModalOpen previousEvent) }, Cmd.none )
 
-                Nothing ->
-                    False
+                        _ ->
+                            ( { model | modalOpen = Nothing }, Cmd.none )
 
-        hasValidChildren =
-            case String.toInt formData.children of
-                Just n ->
-                    n >= 0
+                Err error ->
+                    case model.modalOpen of
+                        Just (RsvpModalOpen event formData previousEvent _) ->
+                            ( { model | modalOpen = Just (RsvpModalOpen event formData previousEvent (Failure (httpErrorToString error))) }
+                            , Cmd.none
+                            )
 
-                Nothing ->
-                    False
-    in
-    hasValidName && hasValidAdults && hasValidChildren
+                        _ ->
+                            ( model, Cmd.none )
+
 
 
 -- VIEW
@@ -255,6 +276,9 @@ viewNavbar townOrName =
 viewEventsRemoteData : Time.Posix -> RemoteData String (List Event) -> Html Msg
 viewEventsRemoteData now remoteData =
     case remoteData of
+        NotAsked ->
+            text ""
+
         Loading ->
             div [ Html.Attributes.class "loading" ] [ text "Loading events..." ]
 
@@ -300,28 +324,28 @@ viewEventCard event =
 viewRsvpButton : Event -> Html Msg
 viewRsvpButton event =
     case event.rsvp of
-        Event.NoAttendance ->
+        Rsvp.NoAttendance ->
             Html.button
                 [ Html.Attributes.class "event-rsvp-button"
                 , onClick (OpenEventModal event)
                 ]
                 [ text "See Details" ]
 
-        Event.NoRsvp ->
+        Rsvp.NoRsvp ->
             Html.button
                 [ Html.Attributes.class "event-rsvp-button"
                 , onClick (OpenEventModal event)
                 ]
                 [ text "All Welcome!" ]
 
-        Event.WithRsvp _ ->
+        Rsvp.WithRsvp _ ->
             Html.button
                 [ Html.Attributes.class "event-rsvp-button"
                 , stopPropagationOn "click" (Json.Decode.succeed ( OpenRsvpModal event, True ))
                 ]
                 [ text "RSVP" ]
 
-        Event.ExternalRsvp url ->
+        Rsvp.ExternalRsvp url ->
             Html.a
                 [ Html.Attributes.href url
                 , Html.Attributes.target "_blank" -- opens in new tab
@@ -333,15 +357,15 @@ viewRsvpButton event =
 viewModal : Time.Posix -> Maybe ModalState -> Html Msg
 viewModal now maybeModal =
     case maybeModal of
+        -- No modal open, render nothing
         Nothing ->
             text ""
 
-        -- No modal open, render nothing
         Just (EventModalOpen event) ->
             viewEventModal event
 
-        Just (RsvpModalOpen event formData _) ->
-            viewRsvpModal event formData
+        Just (RsvpModalOpen event formData _ submissionState) ->
+            viewRsvpModal event formData submissionState
 
 
 viewEventModal : Event -> Html Msg
@@ -380,8 +404,8 @@ viewEventModal event =
         ]
 
 
-viewRsvpModal : Event -> RsvpFormData -> Html Msg
-viewRsvpModal event formData =
+viewRsvpModal : Event -> RsvpFormData -> RemoteData String () -> Html Msg
+viewRsvpModal event formData submissionState =
     div [ Html.Attributes.class "modal-backdrop" ]
         [ div
             [ Html.Attributes.class "modal-container"
@@ -438,10 +462,24 @@ viewRsvpModal event formData =
                     ]
                 , Html.button
                     [ Html.Attributes.class "form-submit-button"
-                    , Html.Attributes.disabled (not (isRsvpFormValid formData))
+                    , Html.Attributes.disabled (not (Rsvp.isRsvpFormValid formData) || submissionState == Loading)
                     , onClick SubmitRsvp
                     ]
-                    [ text "Submit RSVP" ]
+                    [ text
+                        (if submissionState == Loading then
+                            "Submitting..."
+
+                         else
+                            "Submit RSVP"
+                        )
+                    ]
+                , case submissionState of
+                    Failure errorMsg ->
+                        div [ Html.Attributes.class "form-error" ]
+                            [ text errorMsg ]
+
+                    _ ->
+                        text ""
                 ]
             ]
         ]

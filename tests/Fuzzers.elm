@@ -1,7 +1,8 @@
 module Fuzzers exposing (..)
 
-import Event exposing (DateTime, Event, Rsvp, RsvpConfig(..))
+import Event exposing (DateTime, Event)
 import Fuzz exposing (Fuzzer)
+import Rsvp exposing (Rsvp, RsvpConfig(..))
 
 
 startAndEnd : Fuzzer ( DateTime, DateTime )
