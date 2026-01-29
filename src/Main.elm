@@ -293,7 +293,7 @@ viewRsvpButton event =
         Event.WithRsvp _ ->
             Html.button
                 [ Html.Attributes.class "event-rsvp-button"
-                , onClick (OpenRsvpModal event)
+                , stopPropagationOn "click" (Json.Decode.succeed ( OpenRsvpModal event, True ))
                 ]
                 [ text "RSVP" ]
 
@@ -358,36 +358,65 @@ viewEventModal event =
 
 viewRsvpModal : Event -> RsvpFormData -> Html Msg
 viewRsvpModal event formData =
-    div [ Html.Attributes.class "modal-backdrop", onClick CloseModal ]
-        [ div [ Html.Attributes.class "modal-container" ]
-            [ div [] [ text "Close X" ]
-            , h1 [] [ text ("RSVP for " ++ event.title) ]
-            , div []
-                [ div []
-                    [ text "Full Name:"
+    div [ Html.Attributes.class "modal-backdrop" ]
+        [ div
+            [ Html.Attributes.class "modal-container"
+            ]
+            [ -- Close button in top right
+              Html.button
+                [ Html.Attributes.class "modal-close-button"
+                , onClick CloseModal
+                ]
+                [ text "×" ]
+
+            -- Modal header
+            , div [ Html.Attributes.class "modal-header" ]
+                [ h1 [ Html.Attributes.class "modal-title" ] [ text ("RSVP for " ++ event.title) ]
+                ]
+
+            -- Modal body with form
+            , div [ Html.Attributes.class "modal-body" ]
+                [ div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ]
+                        [ text "Full Name" ]
                     , Html.input
-                        [ Html.Attributes.value formData.fullName
+                        [ Html.Attributes.class "form-input"
+                        , Html.Attributes.value formData.fullName
+                        , Html.Attributes.type_ "text"
+                        , Html.Attributes.placeholder "Your full name"
                         , onInput (UpdateRsvpField FullName)
                         ]
                         []
                     ]
-                , div []
-                    [ text "Adults:"
+                , div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ]
+                        [ text "Adults" ]
                     , Html.input
-                        [ Html.Attributes.value formData.adults
+                        [ Html.Attributes.class "form-input"
+                        , Html.Attributes.value formData.adults
+                        , Html.Attributes.type_ "number"
+                        , Html.Attributes.placeholder "1"
                         , onInput (UpdateRsvpField Adults)
                         ]
                         []
                     ]
-                , div []
-                    [ text "Children:"
+                , div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ]
+                        [ text "Children" ]
                     , Html.input
-                        [ Html.Attributes.value formData.children
+                        [ Html.Attributes.class "form-input"
+                        , Html.Attributes.value formData.children
+                        , Html.Attributes.type_ "number"
+                        , Html.Attributes.placeholder "0"
                         , onInput (UpdateRsvpField Children)
                         ]
                         []
                     ]
-                , Html.button [ onClick SubmitRsvp ] [ text "Submit RSVP" ]
+                , Html.button
+                    [ Html.Attributes.class "form-submit-button"
+                    , onClick SubmitRsvp
+                    ]
+                    [ text "Submit RSVP" ]
                 ]
             ]
         ]
