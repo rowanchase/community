@@ -457,9 +457,36 @@ viewEventModal rsvpCounts event =
                     ]
                 , div [ Html.Attributes.class "modal-description" ]
                     [ text event.description ]
+                , viewModalRsvpButton event
                 ]
             ]
         ]
+
+
+viewModalRsvpButton : Event -> Html Msg
+viewModalRsvpButton event =
+    case event.rsvp of
+        Rsvp.WithRsvp _ ->
+            div [ Html.Attributes.class "modal-rsvp-button-container" ]
+                [ Html.button
+                    [ Html.Attributes.class "event-rsvp-button"
+                    , onClick (OpenRsvpModal event)
+                    ]
+                    [ text "RSVP" ]
+                ]
+
+        Rsvp.ExternalRsvp url ->
+            div [ Html.Attributes.class "modal-rsvp-button-container" ]
+                [ Html.a
+                    [ Html.Attributes.href url
+                    , Html.Attributes.target "_blank"
+                    , Html.Attributes.class "event-rsvp-button"
+                    ]
+                    [ text "Get Tickets" ]
+                ]
+
+        _ ->
+            text ""
 
 
 viewRsvpModal : Event -> RsvpFormData -> RemoteData String () -> Html Msg
