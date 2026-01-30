@@ -16,3 +16,6 @@ supabase/.temp/
 supabase/.branches/
 supabase/snippets/
 elm.js
+
+# Local Netlify folder
+.netlify
