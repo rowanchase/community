@@ -91,6 +91,11 @@ type ModalState
     | CreateEventModalOpen CreateEventFormData (RemoteData String ())
 
 
+type DraftForm
+    = DraftCreateEvent CreateEventFormData
+    | DraftRsvp RsvpFormData
+
+
 type alias Model =
     { events : RemoteData String (List Event)
     , rsvpCounts : RemoteData String RsvpCounts
@@ -101,6 +106,7 @@ type alias Model =
     , supabaseAnonKey : String
     , modalOpen : Maybe ModalState
     , authState : AuthState
+    , draftForm : Maybe DraftForm
     }
 
 
@@ -115,6 +121,7 @@ init flags =
       , supabaseAnonKey = flags.supabaseAnonKey
       , modalOpen = Nothing
       , authState = SignedOut
+      , draftForm = Nothing
       }
     , Cmd.batch
         [ Task.perform ReceivedTime Time.now
@@ -281,15 +288,29 @@ update msg model =
 
         OpenRsvpModal event ->
             let
-                emptyRsvpForm =
-                    { fullName = "", adults = "", children = "" }
-            in
-            case model.modalOpen of
-                Just (EventModalOpen openEvent) ->
-                    ( { model | modalOpen = Just (RsvpModalOpen event emptyRsvpForm (Just openEvent) NotAsked) }, Cmd.none )
+                -- Check if we have a saved draft for RSVP
+                rsvpFormData =
+                    case model.draftForm of
+                        Just (DraftRsvp savedDraft) ->
+                            savedDraft  -- Use saved draft
 
-                _ ->
-                    ( { model | modalOpen = Just (RsvpModalOpen event emptyRsvpForm Nothing NotAsked) }, Cmd.none )
+                        _ ->
+                            { fullName = "", adults = "", children = "" }  -- No draft, use empty form
+
+                -- Track previous EventModal if one was open
+                maybePreviousEvent =
+                    case model.modalOpen of
+                        Just (EventModalOpen openEvent) ->
+                            Just openEvent
+                        _ ->
+                            Nothing
+            in
+            ( { model
+                | modalOpen = Just (RsvpModalOpen event rsvpFormData maybePreviousEvent NotAsked)
+                , draftForm = Just (DraftRsvp rsvpFormData)  -- Save as draft immediately
+              }
+            , Cmd.none
+            )
 
         CloseModal ->
             case model.modalOpen of
@@ -319,7 +340,12 @@ update msg model =
                                 Children ->
                                     { formData | children = value }
                     in
-                    ( { model | modalOpen = Just (RsvpModalOpen event updatedFormData previousEvent submissionState) }, Cmd.none )
+                    ( { model
+                        | modalOpen = Just (RsvpModalOpen event updatedFormData previousEvent submissionState)
+                        , draftForm = Just (DraftRsvp updatedFormData)
+                      }
+                    , Cmd.none
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -343,16 +369,25 @@ update msg model =
                 Ok () ->
                     case model.modalOpen of
                         Just (RsvpModalOpen _ _ (Just previousEvent) _) ->
-                            ( { model | modalOpen = Just (EventModalOpen previousEvent) }
+                            -- Return to EventModal, clear draft, fetch new counts
+                            ( { model
+                                | modalOpen = Just (EventModalOpen previousEvent)
+                                , draftForm = Nothing  -- Clear draft on success!
+                              }
                             , fetchRsvpCounts model.supabaseUrl model.supabaseAnonKey
                             )
 
                         _ ->
-                            ( { model | modalOpen = Nothing }
+                            -- Close modal, clear draft, fetch new counts
+                            ( { model
+                                | modalOpen = Nothing
+                                , draftForm = Nothing  -- Clear draft on success!
+                              }
                             , fetchRsvpCounts model.supabaseUrl model.supabaseAnonKey
                             )
 
                 Err error ->
+                    -- Error: keep modal open, keep draft, show error
                     case model.modalOpen of
                         Just (RsvpModalOpen event formData previousEvent _) ->
                             ( { model | modalOpen = Just (RsvpModalOpen event formData previousEvent (Failure (httpErrorToString error))) }
@@ -435,14 +470,34 @@ update msg model =
             ( model, requestSignOut () )
 
         OpenCreateEventModal ->
-            ( { model | modalOpen = Just (CreateEventModalOpen initCreateEventFormData NotAsked) }
+            let
+                -- Check if we have a saved draft for Create Event
+                formData =
+                    case model.draftForm of
+                        Just (DraftCreateEvent savedDraft) ->
+                            savedDraft  -- Use saved draft
+
+                        _ ->
+                            initCreateEventFormData  -- No draft, use empty form
+            in
+            ( { model
+                | modalOpen = Just (CreateEventModalOpen formData NotAsked)
+                , draftForm = Just (DraftCreateEvent formData)  -- Save as draft immediately
+              }
             , Cmd.none
             )
 
         UpdateEventTitle newTitle ->
             case model.modalOpen of
                 Just (CreateEventModalOpen formData status) ->
-                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | title = newTitle } status) }
+                    let
+                        updatedFormData =
+                            { formData | title = newTitle }
+                    in
+                    ( { model
+                        | modalOpen = Just (CreateEventModalOpen updatedFormData status)
+                        , draftForm = Just (DraftCreateEvent updatedFormData)
+                      }
                     , Cmd.none
                     )
 
@@ -452,7 +507,14 @@ update msg model =
         UpdateEventDescription newDescription ->
             case model.modalOpen of
                 Just (CreateEventModalOpen formData status) ->
-                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | description = newDescription } status) }
+                    let
+                        updatedFormData =
+                            { formData | description = newDescription }
+                    in
+                    ( { model
+                        | modalOpen = Just (CreateEventModalOpen updatedFormData status)
+                        , draftForm = Just (DraftCreateEvent updatedFormData)
+                      }
                     , Cmd.none
                     )
 
@@ -462,7 +524,14 @@ update msg model =
         UpdateEventStartDate newStartDate ->
             case model.modalOpen of
                 Just (CreateEventModalOpen formData status) ->
-                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | startDate = newStartDate } status) }
+                    let
+                        updatedFormData =
+                            { formData | startDate = newStartDate }
+                    in
+                    ( { model
+                        | modalOpen = Just (CreateEventModalOpen updatedFormData status)
+                        , draftForm = Just (DraftCreateEvent updatedFormData)
+                      }
                     , Cmd.none
                     )
 
@@ -472,7 +541,14 @@ update msg model =
         UpdateEventStartTime newStartTime ->
             case model.modalOpen of
                 Just (CreateEventModalOpen formData status) ->
-                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | startTime = newStartTime } status) }
+                    let
+                        updatedFormData =
+                            { formData | startTime = newStartTime }
+                    in
+                    ( { model
+                        | modalOpen = Just (CreateEventModalOpen updatedFormData status)
+                        , draftForm = Just (DraftCreateEvent updatedFormData)
+                      }
                     , Cmd.none
                     )
 
@@ -482,7 +558,14 @@ update msg model =
         UpdateEventEndDate newEndDate ->
             case model.modalOpen of
                 Just (CreateEventModalOpen formData status) ->
-                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | endDate = newEndDate } status) }
+                    let
+                        updatedFormData =
+                            { formData | endDate = newEndDate }
+                    in
+                    ( { model
+                        | modalOpen = Just (CreateEventModalOpen updatedFormData status)
+                        , draftForm = Just (DraftCreateEvent updatedFormData)
+                      }
                     , Cmd.none
                     )
 
@@ -492,7 +575,14 @@ update msg model =
         UpdateEventEndTime newEndTime ->
             case model.modalOpen of
                 Just (CreateEventModalOpen formData status) ->
-                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | endTime = newEndTime } status) }
+                    let
+                        updatedFormData =
+                            { formData | endTime = newEndTime }
+                    in
+                    ( { model
+                        | modalOpen = Just (CreateEventModalOpen updatedFormData status)
+                        , draftForm = Just (DraftCreateEvent updatedFormData)
+                      }
                     , Cmd.none
                     )
 
@@ -502,7 +592,14 @@ update msg model =
         UpdateEventLocation newLocation ->
             case model.modalOpen of
                 Just (CreateEventModalOpen formData status) ->
-                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | location = newLocation } status) }
+                    let
+                        updatedFormData =
+                            { formData | location = newLocation }
+                    in
+                    ( { model
+                        | modalOpen = Just (CreateEventModalOpen updatedFormData status)
+                        , draftForm = Just (DraftCreateEvent updatedFormData)
+                      }
                     , Cmd.none
                     )
 
@@ -512,7 +609,14 @@ update msg model =
         UpdateEventRsvpConfig newRsvpConfig ->
             case model.modalOpen of
                 Just (CreateEventModalOpen formData status) ->
-                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | rsvpConfig = newRsvpConfig } status) }
+                    let
+                        updatedFormData =
+                            { formData | rsvpConfig = newRsvpConfig }
+                    in
+                    ( { model
+                        | modalOpen = Just (CreateEventModalOpen updatedFormData status)
+                        , draftForm = Just (DraftCreateEvent updatedFormData)
+                      }
                     , Cmd.none
                     )
 
@@ -522,7 +626,14 @@ update msg model =
         UpdateEventExternalRsvpUrl newUrl ->
             case model.modalOpen of
                 Just (CreateEventModalOpen formData status) ->
-                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | externalRsvpUrl = newUrl } status) }
+                    let
+                        updatedFormData =
+                            { formData | externalRsvpUrl = newUrl }
+                    in
+                    ( { model
+                        | modalOpen = Just (CreateEventModalOpen updatedFormData status)
+                        , draftForm = Just (DraftCreateEvent updatedFormData)
+                      }
                     , Cmd.none
                     )
 
@@ -546,13 +657,16 @@ update msg model =
         GotCreateEventResult result ->
             case result of
                 Ok () ->
-                    -- Success: close modal and refresh events list
-                    ( { model | modalOpen = Nothing }
+                    -- Success: close modal, clear draft, refresh events list
+                    ( { model
+                        | modalOpen = Nothing
+                        , draftForm = Nothing  -- Clear draft on success!
+                      }
                     , fetchEvents model.supabaseUrl model.supabaseAnonKey
                     )
 
                 Err httpError ->
-                    -- Error: keep modal open, show error
+                    -- Error: keep modal open, keep draft, show error
                     case model.modalOpen of
                         Just (CreateEventModalOpen formData _) ->
                             ( { model | modalOpen = Just (CreateEventModalOpen formData (Failure (httpErrorToString httpError))) }
