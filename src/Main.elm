@@ -135,7 +135,9 @@ initCreateEventFormData : CreateEventFormData
 initCreateEventFormData =
     { title = ""
     , description = ""
+    , startDate = ""
     , startTime = ""
+    , endDate = ""
     , endTime = ""
     , location = ""
     , rsvpConfig = NoRsvpSelection
@@ -169,7 +171,9 @@ type Msg
     | OpenCreateEventModal
     | UpdateEventTitle String
     | UpdateEventDescription String
+    | UpdateEventStartDate String
     | UpdateEventStartTime String
+    | UpdateEventEndDate String
     | UpdateEventEndTime String
     | UpdateEventLocation String
     | UpdateEventRsvpConfig RsvpConfigSelection
@@ -455,10 +459,30 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        UpdateEventStartDate newStartDate ->
+            case model.modalOpen of
+                Just (CreateEventModalOpen formData status) ->
+                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | startDate = newStartDate } status) }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
         UpdateEventStartTime newStartTime ->
             case model.modalOpen of
                 Just (CreateEventModalOpen formData status) ->
                     ( { model | modalOpen = Just (CreateEventModalOpen { formData | startTime = newStartTime } status) }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        UpdateEventEndDate newEndDate ->
+            case model.modalOpen of
+                Just (CreateEventModalOpen formData status) ->
+                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | endDate = newEndDate } status) }
                     , Cmd.none
                     )
 
@@ -944,24 +968,48 @@ viewCreateEventModal formData status =
                         []
                     ]
 
-                -- Start Time field (datetime-local)
+                -- Start Date field
+                , div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ] [ text "Start Date" ]
+                    , Html.input
+                        [ Html.Attributes.class "form-input"
+                        , Html.Attributes.type_ "date"
+                        , Html.Attributes.value formData.startDate
+                        , onInput UpdateEventStartDate
+                        ]
+                        []
+                    ]
+
+                -- Start Time field
                 , div [ Html.Attributes.class "form-field" ]
                     [ Html.label [ Html.Attributes.class "form-label" ] [ text "Start Time" ]
                     , Html.input
                         [ Html.Attributes.class "form-input"
-                        , Html.Attributes.type_ "datetime-local"
+                        , Html.Attributes.type_ "time"
                         , Html.Attributes.value formData.startTime
                         , onInput UpdateEventStartTime
                         ]
                         []
                     ]
 
-                -- End Time field (datetime-local)
+                -- End Date field
+                , div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ] [ text "End Date" ]
+                    , Html.input
+                        [ Html.Attributes.class "form-input"
+                        , Html.Attributes.type_ "date"
+                        , Html.Attributes.value formData.endDate
+                        , onInput UpdateEventEndDate
+                        ]
+                        []
+                    ]
+
+                -- End Time field
                 , div [ Html.Attributes.class "form-field" ]
                     [ Html.label [ Html.Attributes.class "form-label" ] [ text "End Time" ]
                     , Html.input
                         [ Html.Attributes.class "form-input"
-                        , Html.Attributes.type_ "datetime-local"
+                        , Html.Attributes.type_ "time"
                         , Html.Attributes.value formData.endTime
                         , onInput UpdateEventEndTime
                         ]

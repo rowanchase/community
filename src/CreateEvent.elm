@@ -1,6 +1,7 @@
 module CreateEvent exposing
     ( CreateEventFormData
     , RsvpConfigSelection(..)
+    , combineDateTime
     , encodeEvent
     , isEndTimeAfterStartTime
     , isFormValid
@@ -26,8 +27,10 @@ All fields are strings to match HTML input values
 type alias CreateEventFormData =
     { title : String
     , description : String
-    , startTime : String -- ISO8601 from datetime-local input
-    , endTime : String -- ISO8601 from datetime-local input
+    , startDate : String -- YYYY-MM-DD from date input
+    , startTime : String -- HH:MM from time input
+    , endDate : String -- YYYY-MM-DD from date input
+    , endTime : String -- HH:MM from time input
     , location : String
     , rsvpConfig : RsvpConfigSelection
     , externalRsvpUrl : String -- Only used when rsvpConfig = ExternalRsvpSelection
@@ -51,12 +54,19 @@ isValidUrl url =
     String.startsWith "http://" url || String.startsWith "https://" url
 
 
-{-| Validate that end time is after start time
+{-| Combine date (YYYY-MM-DD) and time (HH:MM) into ISO8601 format (YYYY-MM-DDTHH:MM)
+-}
+combineDateTime : String -> String -> String
+combineDateTime date time =
+    date ++ "T" ++ time
+
+
+{-| Validate that end datetime is after start datetime
 We can use simple string comparison because ISO8601 format is lexicographically ordered
 -}
 isEndTimeAfterStartTime : String -> String -> Bool
-isEndTimeAfterStartTime startTime endTime =
-    endTime > startTime
+isEndTimeAfterStartTime startDateTime endDateTime =
+    endDateTime > startDateTime
 
 
 {-| Check if the form is valid and ready to submit
@@ -64,7 +74,8 @@ isEndTimeAfterStartTime startTime endTime =
 Rules:
 
   - All text fields must be non-empty
-  - End time must be after start time
+  - All date and time fields must be non-empty
+  - End datetime must be after start datetime
   - If RSVP config is ExternalRsvp, the URL must be non-empty and valid
 
 -}
@@ -75,13 +86,22 @@ isFormValid formData =
         hasRequiredFields =
             not (String.isEmpty formData.title)
                 && not (String.isEmpty formData.description)
+                && not (String.isEmpty formData.startDate)
                 && not (String.isEmpty formData.startTime)
+                && not (String.isEmpty formData.endDate)
                 && not (String.isEmpty formData.endTime)
                 && not (String.isEmpty formData.location)
 
+        -- Combine date and time fields into ISO8601 format for validation
+        startDateTime =
+            combineDateTime formData.startDate formData.startTime
+
+        endDateTime =
+            combineDateTime formData.endDate formData.endTime
+
         -- Check dates are in correct order
         datesValid =
-            isEndTimeAfterStartTime formData.startTime formData.endTime
+            isEndTimeAfterStartTime startDateTime endDateTime
 
         -- Check external URL if needed
         externalUrlValid =
@@ -130,12 +150,19 @@ encodeEvent formData =
                 ExternalRsvpSelection ->
                     "external_rsvp"
 
+        -- Combine date and time fields into ISO8601 format
+        startDateTime =
+            combineDateTime formData.startDate formData.startTime
+
+        endDateTime =
+            combineDateTime formData.endDate formData.endTime
+
         -- Base fields that are always present
         baseFields =
             [ ( "title", Json.Encode.string formData.title )
             , ( "description", Json.Encode.string formData.description )
-            , ( "start_time", Json.Encode.string formData.startTime )
-            , ( "end_time", Json.Encode.string formData.endTime )
+            , ( "start_time", Json.Encode.string startDateTime )
+            , ( "end_time", Json.Encode.string endDateTime )
             , ( "location", Json.Encode.string formData.location )
             , ( "image_url", Json.Encode.null )
             , ( "rsvp_type", Json.Encode.string rsvpTypeString )
