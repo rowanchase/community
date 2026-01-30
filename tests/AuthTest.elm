@@ -82,7 +82,8 @@ userDecoderTests =
                         """
                         {
                             "id": "user-123",
-                            "email": "test@example.com"
+                            "email": "test@example.com",
+                            "accessToken": "test-token-123"
                         }
                         """
                 in
@@ -91,6 +92,7 @@ userDecoderTests =
                         (Ok
                             { id = "user-123"
                             , email = "test@example.com"
+                            , accessToken = "test-token-123"
                             }
                         )
         , test "fails on missing id field" <|
@@ -155,7 +157,8 @@ authStateDecoderTests =
                         {
                             "tag": "SignedIn",
                             "id": "user-456",
-                            "email": "hello@example.com"
+                            "email": "hello@example.com",
+                            "accessToken": "test-token-456"
                         }
                         """
                 in
@@ -165,6 +168,7 @@ authStateDecoderTests =
                             (SignedIn
                                 { id = "user-456"
                                 , email = "hello@example.com"
+                                , accessToken = "test-token-456"
                                 }
                             )
                         )
