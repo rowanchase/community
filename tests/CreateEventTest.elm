@@ -52,35 +52,47 @@ urlValidationTests =
         ]
 
 
-{-| Tests for date/time validation
+{-| Tests for date/time validation and combination
 -}
 dateValidationTests : Test
 dateValidationTests =
-    describe "isEndTimeAfterStartTime"
-        [ test "returns true when end time is after start time" <|
-            \_ ->
-                isEndTimeAfterStartTime "2026-01-30T10:00" "2026-01-30T14:00"
-                    |> Expect.equal True
-        , test "returns false when end time is before start time" <|
-            \_ ->
-                isEndTimeAfterStartTime "2026-01-30T14:00" "2026-01-30T10:00"
-                    |> Expect.equal False
-        , test "returns false when end time equals start time" <|
-            \_ ->
-                isEndTimeAfterStartTime "2026-01-30T10:00" "2026-01-30T10:00"
-                    |> Expect.equal False
-        , test "works across days" <|
-            \_ ->
-                isEndTimeAfterStartTime "2026-01-30T23:00" "2026-01-31T02:00"
-                    |> Expect.equal True
-        , test "works across months" <|
-            \_ ->
-                isEndTimeAfterStartTime "2026-01-31T10:00" "2026-02-01T10:00"
-                    |> Expect.equal True
-        , test "works across years" <|
-            \_ ->
-                isEndTimeAfterStartTime "2025-12-31T23:00" "2026-01-01T01:00"
-                    |> Expect.equal True
+    describe "Date and time handling"
+        [ describe "combineDateTime"
+            [ test "combines date and time correctly" <|
+                \_ ->
+                    combineDateTime "2026-01-30" "14:00"
+                        |> Expect.equal "2026-01-30T14:00"
+            , test "works with different times" <|
+                \_ ->
+                    combineDateTime "2025-12-31" "23:59"
+                        |> Expect.equal "2025-12-31T23:59"
+            ]
+        , describe "isEndTimeAfterStartTime"
+            [ test "returns true when end time is after start time" <|
+                \_ ->
+                    isEndTimeAfterStartTime "2026-01-30T10:00" "2026-01-30T14:00"
+                        |> Expect.equal True
+            , test "returns false when end time is before start time" <|
+                \_ ->
+                    isEndTimeAfterStartTime "2026-01-30T14:00" "2026-01-30T10:00"
+                        |> Expect.equal False
+            , test "returns false when end time equals start time" <|
+                \_ ->
+                    isEndTimeAfterStartTime "2026-01-30T10:00" "2026-01-30T10:00"
+                        |> Expect.equal False
+            , test "works across days" <|
+                \_ ->
+                    isEndTimeAfterStartTime "2026-01-30T23:00" "2026-01-31T02:00"
+                        |> Expect.equal True
+            , test "works across months" <|
+                \_ ->
+                    isEndTimeAfterStartTime "2026-01-31T10:00" "2026-02-01T10:00"
+                        |> Expect.equal True
+            , test "works across years" <|
+                \_ ->
+                    isEndTimeAfterStartTime "2025-12-31T23:00" "2026-01-01T01:00"
+                        |> Expect.equal True
+            ]
         ]
 
 
@@ -95,8 +107,10 @@ formValidationTests =
                     validForm =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = NoRsvpSelection
                         , externalRsvpUrl = ""
@@ -110,8 +124,10 @@ formValidationTests =
                     invalidForm =
                         { title = ""
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = NoRsvpSelection
                         , externalRsvpUrl = ""
@@ -125,8 +141,10 @@ formValidationTests =
                     invalidForm =
                         { title = "Test Event"
                         , description = ""
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = NoRsvpSelection
                         , externalRsvpUrl = ""
@@ -140,8 +158,10 @@ formValidationTests =
                     invalidForm =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = ""
                         , rsvpConfig = NoRsvpSelection
                         , externalRsvpUrl = ""
@@ -155,8 +175,10 @@ formValidationTests =
                     invalidForm =
                         { title = "Test Event"
                         , description = "Test description"
+                        , startDate = "2026-01-30"
                         , startTime = ""
-                        , endTime = "2026-01-30T14:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = NoRsvpSelection
                         , externalRsvpUrl = ""
@@ -170,7 +192,9 @@ formValidationTests =
                     invalidForm =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
                         , endTime = ""
                         , location = "Test Location"
                         , rsvpConfig = NoRsvpSelection
@@ -185,8 +209,10 @@ formValidationTests =
                     invalidForm =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T14:00"
-                        , endTime = "2026-01-30T10:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "14:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "10:00"
                         , location = "Test Location"
                         , rsvpConfig = NoRsvpSelection
                         , externalRsvpUrl = ""
@@ -200,8 +226,10 @@ formValidationTests =
                     validForm =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = ExternalRsvpSelection
                         , externalRsvpUrl = "https://example.com/rsvp"
@@ -215,8 +243,10 @@ formValidationTests =
                     invalidForm =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = ExternalRsvpSelection
                         , externalRsvpUrl = ""
@@ -230,8 +260,10 @@ formValidationTests =
                     invalidForm =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = ExternalRsvpSelection
                         , externalRsvpUrl = "not-a-valid-url"
@@ -245,8 +277,10 @@ formValidationTests =
                     validForm =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = WithRsvpSelection
                         , externalRsvpUrl = "invalid-url"
@@ -268,8 +302,10 @@ encodingTests =
                     formData =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = NoRsvpSelection
                         , externalRsvpUrl = ""
@@ -295,8 +331,10 @@ encodingTests =
                     formData =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = NoAttendanceSelection
                         , externalRsvpUrl = ""
@@ -319,8 +357,10 @@ encodingTests =
                     formData =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = WithRsvpSelection
                         , externalRsvpUrl = ""
@@ -343,8 +383,10 @@ encodingTests =
                     formData =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = ExternalRsvpSelection
                         , externalRsvpUrl = "https://example.com/rsvp"
@@ -370,8 +412,10 @@ encodingTests =
                     formData =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = NoRsvpSelection
                         , externalRsvpUrl = ""
@@ -419,8 +463,10 @@ encodingTests =
                     formData =
                         { title = "Test Event"
                         , description = "Test description"
-                        , startTime = "2026-01-30T10:00"
-                        , endTime = "2026-01-30T14:00"
+                        , startDate = "2026-01-30"
+                        , startTime = "10:00"
+                        , endDate = "2026-01-30"
+                        , endTime = "14:00"
                         , location = "Test Location"
                         , rsvpConfig = NoRsvpSelection
                         , externalRsvpUrl = ""
