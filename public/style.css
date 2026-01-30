@@ -35,6 +35,20 @@ body {
     flex-direction: column;
 }
 
+.app-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: var(--paper);
+      border-top: 1px solid var(--border);
+      padding: 0.3rem 0.3rem;
+      z-index: 50;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+}
+
 /* Modern header */
 .navbar {
     position: sticky;
@@ -496,10 +510,6 @@ body {
 
 /* Login Button (fixed bottom left) */
 .login-button-container {
-    position: fixed;
-    bottom: 1rem;
-    left: 1rem;
-    z-index: 50;
 }
 
 .login-button {
