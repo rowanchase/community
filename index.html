@@ -11,15 +11,68 @@
       <script type="module">
         // Import Elm source - Vite will compile it
         import { Elm } from './src/Main.elm'
+        import { createClient } from '@supabase/supabase-js'
+
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+        // Initialize Supabase client
+        const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
         // Initialize Elm app with environment variables as flags
         const app = Elm.Main.init({
           node: document.getElementById('app'),
           flags: {
-            supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-            supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
+            supabaseUrl: supabaseUrl,
+            supabaseAnonKey: supabaseAnonKey
           }
         });
+
+        // Helper: Send current auth state to Elm
+        function sendAuthState(session) {
+          if (session?.user) {
+            app.ports.authStateChanged.send({
+              tag: 'SignedIn',
+              id: session.user.id,
+              email: session.user.email
+            })
+          } else {
+            app.ports.authStateChanged.send({ tag: 'SignedOut' })
+          }
+        }
+
+        // Listen for auth state changes (fires on sign in/out)
+        supabase.auth.onAuthStateChange((_event, session) => {
+          sendAuthState(session)
+        })
+
+        // Check for existing session on page load
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          sendAuthState(session)
+        })
+
+        // Port: Request magic link
+        app.ports.requestMagicLink.subscribe(async (email) => {
+          const { error } = await supabase.auth.signInWithOtp({
+            email: email,
+            options: {
+              emailRedirectTo: window.location.origin
+            }
+          })
+
+          if (error) {
+            console.error('Magic link error:', error)
+            app.ports.magicLinkSent.send(false)
+          } else {
+            app.ports.magicLinkSent.send(true)
+          }
+        })
+
+        // Port: Sign out
+        app.ports.requestSignOut.subscribe(async () => {
+          await supabase.auth.signOut()
+          // Auth state change will trigger automatically
+        })
       </script>
   </body>
 </html>
