@@ -292,22 +292,25 @@ update msg model =
                 rsvpFormData =
                     case model.draftForm of
                         Just (DraftRsvp savedDraft) ->
-                            savedDraft  -- Use saved draft
+                            savedDraft
 
+                        -- Use saved draft
                         _ ->
-                            { fullName = "", adults = "", children = "" }  -- No draft, use empty form
+                            { fullName = "", adults = "", children = "" }
 
+                -- No draft, use empty form
                 -- Track previous EventModal if one was open
                 maybePreviousEvent =
                     case model.modalOpen of
                         Just (EventModalOpen openEvent) ->
                             Just openEvent
+
                         _ ->
                             Nothing
             in
             ( { model
                 | modalOpen = Just (RsvpModalOpen event rsvpFormData maybePreviousEvent NotAsked)
-                , draftForm = Just (DraftRsvp rsvpFormData)  -- Save as draft immediately
+                , draftForm = Just (DraftRsvp rsvpFormData) -- Save as draft immediately
               }
             , Cmd.none
             )
@@ -372,7 +375,7 @@ update msg model =
                             -- Return to EventModal, clear draft, fetch new counts
                             ( { model
                                 | modalOpen = Just (EventModalOpen previousEvent)
-                                , draftForm = Nothing  -- Clear draft on success!
+                                , draftForm = Nothing -- Clear draft on success!
                               }
                             , fetchRsvpCounts model.supabaseUrl model.supabaseAnonKey
                             )
@@ -381,7 +384,7 @@ update msg model =
                             -- Close modal, clear draft, fetch new counts
                             ( { model
                                 | modalOpen = Nothing
-                                , draftForm = Nothing  -- Clear draft on success!
+                                , draftForm = Nothing -- Clear draft on success!
                               }
                             , fetchRsvpCounts model.supabaseUrl model.supabaseAnonKey
                             )
@@ -475,14 +478,17 @@ update msg model =
                 formData =
                     case model.draftForm of
                         Just (DraftCreateEvent savedDraft) ->
-                            savedDraft  -- Use saved draft
+                            savedDraft
 
+                        -- Use saved draft
                         _ ->
-                            initCreateEventFormData  -- No draft, use empty form
+                            initCreateEventFormData
+
+                -- No draft, use empty form
             in
             ( { model
                 | modalOpen = Just (CreateEventModalOpen formData NotAsked)
-                , draftForm = Just (DraftCreateEvent formData)  -- Save as draft immediately
+                , draftForm = Just (DraftCreateEvent formData) -- Save as draft immediately
               }
             , Cmd.none
             )
@@ -660,7 +666,7 @@ update msg model =
                     -- Success: close modal, clear draft, refresh events list
                     ( { model
                         | modalOpen = Nothing
-                        , draftForm = Nothing  -- Clear draft on success!
+                        , draftForm = Nothing -- Clear draft on success!
                       }
                     , fetchEvents model.supabaseUrl model.supabaseAnonKey
                     )
@@ -698,14 +704,18 @@ view model =
                 [ viewNavbar model.townOrName
                 , viewEventsRemoteData model.authState t model.events
                 , viewModal t counts model.modalOpen
-                , viewLoginButton model.authState
+                , Html.footer
+                    [ Html.Attributes.class "app-footer" ]
+                    [ viewLoginButton model.authState ]
                 ]
 
         _ ->
             div [ Html.Attributes.class "app" ]
                 [ viewNavbar model.townOrName
                 , div [ Html.Attributes.class "loading" ] [ text "loading..." ]
-                , viewLoginButton model.authState
+                , Html.footer
+                    [ Html.Attributes.class "app-footer" ]
+                    [ viewLoginButton model.authState ]
                 ]
 
 
