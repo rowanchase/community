@@ -493,3 +493,58 @@ body {
 	font-size: 0.9rem;
 	line-height: 1.5;
 }
+
+/* Login Button (fixed bottom left) */
+.login-button-container {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: 50;
+}
+
+.login-button {
+    background: none;
+    border: none;
+    color: var(--ink-light);
+    font-size: 0.9rem;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.login-button:hover {
+    color: var(--ink);
+}
+
+/* User info when signed in */
+.user-info {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--ink-light);
+}
+
+.signout-button {
+    background: none;
+    border: 1px solid var(--ink-light);
+    color: var(--ink-light);
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.signout-button:hover {
+    background: var(--ink-light);
+    color: var(--paper);
+}
+
+/* Login success message */
+.login-success {
+    background-color: var(--yellow-light);
+    padding: 1rem;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 600;
+}

@@ -1,5 +1,6 @@
-module Main exposing (Model, Msg(..), main, update)
+port module Main exposing (Model, Msg(..), main, update)
 
+import Auth exposing (AuthState(..), LoginFormState, User)
 import Browser
 import Dict
 import Event exposing (Event)
@@ -8,10 +9,45 @@ import Html.Attributes
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Http
 import Json.Decode
+import RemoteData exposing (RemoteData(..))
 import Rsvp exposing (RsvpFormData)
 import RsvpCount exposing (RsvpCounts)
 import Task
 import Time
+
+
+
+-- PORTS
+-- Ports allow Elm to communicate with JavaScript
+-- Outbound ports: Elm sends commands to JavaScript
+-- Inbound ports: JavaScript sends data to Elm
+
+
+{-| Request a magic link to be sent to the given email address
+-}
+port requestMagicLink : String -> Cmd msg
+
+
+{-| Request to sign out the current user
+-}
+port requestSignOut : () -> Cmd msg
+
+
+{-| Receive auth state changes from JavaScript
+This fires when:
+
+  - User signs in via magic link
+  - User signs out
+  - Page loads with existing session
+
+-}
+port authStateChanged : (Json.Decode.Value -> msg) -> Sub msg
+
+
+{-| Receive result of magic link request
+JavaScript sends True if successful, False if error
+-}
+port magicLinkSent : (Bool -> msg) -> Sub msg
 
 
 
@@ -22,13 +58,6 @@ type alias Flags =
     { supabaseUrl : String
     , supabaseAnonKey : String
     }
-
-
-type RemoteData error data
-    = NotAsked
-    | Loading
-    | Success data
-    | Failure error
 
 
 httpErrorToString : Http.Error -> String
@@ -57,6 +86,7 @@ type alias TownOrName =
 type ModalState
     = EventModalOpen Event
     | RsvpModalOpen Event RsvpFormData (Maybe Event) (RemoteData String ())
+    | LoginModalOpen LoginFormState
 
 
 type alias Model =
@@ -68,6 +98,7 @@ type alias Model =
     , supabaseUrl : String
     , supabaseAnonKey : String
     , modalOpen : Maybe ModalState
+    , authState : AuthState
     }
 
 
@@ -81,6 +112,7 @@ init flags =
       , supabaseUrl = flags.supabaseUrl
       , supabaseAnonKey = flags.supabaseAnonKey
       , modalOpen = Nothing
+      , authState = SignedOut
       }
     , Cmd.batch
         [ Task.perform ReceivedTime Time.now
@@ -112,6 +144,12 @@ type Msg
     | UpdateRsvpField RsvpField String
     | SubmitRsvp
     | GotRsvpSubmissionResult (Result Http.Error ())
+    | OpenLoginModal
+    | UpdateLoginEmail String
+    | SubmitMagicLinkRequest
+    | MagicLinkSent Bool
+    | AuthStateChanged Json.Decode.Value
+    | SignOut
 
 
 fetchEvents : String -> String -> Cmd Msg
@@ -276,6 +314,78 @@ update msg model =
                         _ ->
                             ( model, Cmd.none )
 
+        OpenLoginModal ->
+            ( { model
+                | modalOpen = Just (LoginModalOpen { email = "", status = NotAsked })
+              }
+            , Cmd.none
+            )
+
+        UpdateLoginEmail email ->
+            case model.modalOpen of
+                Just (LoginModalOpen formState) ->
+                    ( { model
+                        | modalOpen = Just (LoginModalOpen { formState | email = email })
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        SubmitMagicLinkRequest ->
+            case model.modalOpen of
+                Just (LoginModalOpen formState) ->
+                    if Auth.isValidEmail formState.email then
+                        ( { model
+                            | modalOpen = Just (LoginModalOpen { formState | status = Loading })
+                          }
+                        , requestMagicLink formState.email
+                        )
+
+                    else
+                        ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        MagicLinkSent success ->
+            case model.modalOpen of
+                Just (LoginModalOpen formState) ->
+                    if success then
+                        ( { model
+                            | modalOpen = Just (LoginModalOpen { formState | status = Success () })
+                          }
+                        , Cmd.none
+                        )
+
+                    else
+                        ( { model
+                            | modalOpen = Just (LoginModalOpen { formState | status = Failure "Failed to send magic link. Please try again." })
+                          }
+                        , Cmd.none
+                        )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        AuthStateChanged jsonValue ->
+            case Json.Decode.decodeValue Auth.authStateDecoder jsonValue of
+                Ok authState ->
+                    ( { model
+                        | authState = authState
+                        , modalOpen = Nothing
+                      }
+                    , Cmd.none
+                    )
+
+                Err _ ->
+                    -- Failed to decode auth state - ignore it
+                    ( model, Cmd.none )
+
+        SignOut ->
+            ( model, requestSignOut () )
+
 
 
 -- VIEW
@@ -298,12 +408,14 @@ view model =
                 [ viewNavbar model.townOrName
                 , viewEventsRemoteData t model.events
                 , viewModal t counts model.modalOpen
+                , viewLoginButton model.authState
                 ]
 
         _ ->
             div [ Html.Attributes.class "app" ]
                 [ viewNavbar model.townOrName
                 , div [ Html.Attributes.class "loading" ] [ text "loading..." ]
+                , viewLoginButton model.authState
                 ]
 
 
@@ -398,6 +510,29 @@ viewRsvpButton event =
                 [ text "Get Tickets" ]
 
 
+viewLoginButton : AuthState -> Html Msg
+viewLoginButton authState =
+    div [ Html.Attributes.class "login-button-container" ]
+        [ case authState of
+            SignedOut ->
+                Html.button
+                    [ Html.Attributes.class "login-button"
+                    , onClick OpenLoginModal
+                    ]
+                    [ text "Sign in" ]
+
+            SignedIn user ->
+                div [ Html.Attributes.class "user-info" ]
+                    [ text user.email
+                    , Html.button
+                        [ Html.Attributes.class "signout-button"
+                        , onClick SignOut
+                        ]
+                        [ text "Sign out" ]
+                    ]
+        ]
+
+
 viewModal : Time.Posix -> RsvpCounts -> Maybe ModalState -> Html Msg
 viewModal now rsvpCounts maybeModal =
     case maybeModal of
@@ -410,6 +545,9 @@ viewModal now rsvpCounts maybeModal =
 
         Just (RsvpModalOpen event formData _ submissionState) ->
             viewRsvpModal event formData submissionState
+
+        Just (LoginModalOpen formState) ->
+            viewLoginModal formState
 
 
 viewEventModal : RsvpCounts -> Event -> Html Msg
@@ -570,8 +708,84 @@ viewRsvpModal event formData submissionState =
         ]
 
 
+viewLoginModal : LoginFormState -> Html Msg
+viewLoginModal formState =
+    div [ Html.Attributes.class "modal-backdrop" ]
+        [ div
+            [ Html.Attributes.class "modal-container"
+            ]
+            [ -- Modal close button
+              Html.button
+                [ Html.Attributes.class "modal-close-button"
+                , onClick CloseModal
+                ]
+                [ text "×" ]
+            , -- Modal header
+              div [ Html.Attributes.class "modal-header" ]
+                [ h1 [ Html.Attributes.class "modal-title" ] [ text "Sign In" ]
+                ]
+            , -- Modal body
+              div [ Html.Attributes.class "modal-body" ]
+                [ case formState.status of
+                    Success () ->
+                        div [ Html.Attributes.class "login-success" ]
+                            [ text "✓ Check your email! Click the link to sign in." ]
+
+                    _ ->
+                        div []
+                            [ Html.p [] [ text "Enter your email to receive a magic link" ]
+                            , -- Email input
+                              div [ Html.Attributes.class "form-field" ]
+                                [ Html.label [ Html.Attributes.class "form-label" ]
+                                    [ text "Email" ]
+                                , Html.input
+                                    [ Html.Attributes.class "form-input"
+                                    , Html.Attributes.value formState.email
+                                    , Html.Attributes.type_ "email"
+                                    , Html.Attributes.placeholder "you@example.com"
+                                    , onInput UpdateLoginEmail
+                                    ]
+                                    []
+                                ]
+                            , -- Submit button
+                              Html.button
+                                [ Html.Attributes.class "form-submit-button"
+                                , Html.Attributes.disabled
+                                    (not (Auth.isValidEmail formState.email) || formState.status == Loading)
+                                , onClick SubmitMagicLinkRequest
+                                ]
+                                [ text
+                                    (if formState.status == Loading then
+                                        "Sending..."
+
+                                     else
+                                        "Send Magic Link"
+                                    )
+                                ]
+                            , -- Error message
+                              case formState.status of
+                                Failure errorMsg ->
+                                    div [ Html.Attributes.class "form-error" ]
+                                        [ text errorMsg ]
+
+                                _ ->
+                                    text ""
+                            ]
+                ]
+            ]
+        ]
+
+
 
 -- MAIN
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.batch
+        [ authStateChanged AuthStateChanged
+        , magicLinkSent MagicLinkSent
+        ]
 
 
 main : Program Flags Model Msg
@@ -580,5 +794,5 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         }
