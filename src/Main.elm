@@ -1126,6 +1126,13 @@ viewCreateEventModal formData status =
                         , onInput UpdateEventEndDate
                         ]
                         []
+                    , case CreateEvent.validateEndTimeMessage formData.startDate formData.startTime formData.endDate formData.endTime of
+                        Just errorMsg ->
+                            div [ Html.Attributes.class "form-field-error" ]
+                                [ text errorMsg ]
+
+                        Nothing ->
+                            text ""
                     ]
 
                 -- End Time field
@@ -1138,6 +1145,13 @@ viewCreateEventModal formData status =
                         , onInput UpdateEventEndTime
                         ]
                         []
+                    , case CreateEvent.validateEndTimeMessage formData.startDate formData.startTime formData.endDate formData.endTime of
+                        Just errorMsg ->
+                            div [ Html.Attributes.class "form-field-error" ]
+                                [ text errorMsg ]
+
+                        Nothing ->
+                            text ""
                     ]
 
                 -- Location field
@@ -1180,6 +1194,13 @@ viewCreateEventModal formData status =
                                 , onInput UpdateEventExternalRsvpUrl
                                 ]
                                 []
+                            , case CreateEvent.validateExternalUrlMessage formData.externalRsvpUrl of
+                                Just errorMsg ->
+                                    div [ Html.Attributes.class "form-field-error" ]
+                                        [ text errorMsg ]
+
+                                Nothing ->
+                                    text ""
                             ]
 
                     _ ->

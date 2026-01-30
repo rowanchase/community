@@ -508,6 +508,14 @@ body {
 	line-height: 1.5;
 }
 
+/* Field-level validation error messages */
+.form-field-error {
+	margin-top: 0.5rem;
+	color: var(--red);
+	font-size: 0.85rem;
+	line-height: 1.4;
+}
+
 /* Login Button (fixed bottom left) */
 .login-button-container {
 }

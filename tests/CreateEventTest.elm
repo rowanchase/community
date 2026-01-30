@@ -16,6 +16,7 @@ suite =
         [ urlValidationTests
         , dateValidationTests
         , formValidationTests
+        , validationMessageTests
         , encodingTests
         ]
 
@@ -288,6 +289,66 @@ formValidationTests =
                 in
                 isFormValid validForm
                     |> Expect.equal True
+        ]
+
+
+{-| Tests for validation error messages shown to users
+-}
+validationMessageTests : Test
+validationMessageTests =
+    describe "Validation error messages"
+        [ describe "validateExternalUrlMessage"
+            [ test "returns Nothing for empty URL" <|
+                \_ ->
+                    validateExternalUrlMessage ""
+                        |> Expect.equal Nothing
+            , test "returns Nothing for valid http:// URL" <|
+                \_ ->
+                    validateExternalUrlMessage "http://example.com"
+                        |> Expect.equal Nothing
+            , test "returns Nothing for valid https:// URL" <|
+                \_ ->
+                    validateExternalUrlMessage "https://example.com/tickets"
+                        |> Expect.equal Nothing
+            , test "returns error message for URL without protocol" <|
+                \_ ->
+                    validateExternalUrlMessage "example.com"
+                        |> Expect.equal (Just "URL must start with http:// or https://")
+            , test "returns error message for URL with wrong protocol" <|
+                \_ ->
+                    validateExternalUrlMessage "ftp://example.com"
+                        |> Expect.equal (Just "URL must start with http:// or https://")
+            ]
+        , describe "validateEndTimeMessage"
+            [ test "returns Nothing when all fields are empty" <|
+                \_ ->
+                    validateEndTimeMessage "" "" "" ""
+                        |> Expect.equal Nothing
+            , test "returns Nothing when only start date is filled" <|
+                \_ ->
+                    validateEndTimeMessage "2026-01-30" "" "" ""
+                        |> Expect.equal Nothing
+            , test "returns Nothing when only start fields are filled" <|
+                \_ ->
+                    validateEndTimeMessage "2026-01-30" "10:00" "" ""
+                        |> Expect.equal Nothing
+            , test "returns Nothing when end time is after start time" <|
+                \_ ->
+                    validateEndTimeMessage "2026-01-30" "10:00" "2026-01-30" "14:00"
+                        |> Expect.equal Nothing
+            , test "returns error when end time is before start time" <|
+                \_ ->
+                    validateEndTimeMessage "2026-01-30" "14:00" "2026-01-30" "10:00"
+                        |> Expect.equal (Just "End time must be after start time")
+            , test "returns error when end time equals start time" <|
+                \_ ->
+                    validateEndTimeMessage "2026-01-30" "10:00" "2026-01-30" "10:00"
+                        |> Expect.equal (Just "End time must be after start time")
+            , test "handles multi-day events correctly" <|
+                \_ ->
+                    validateEndTimeMessage "2026-01-30" "23:00" "2026-01-31" "02:00"
+                        |> Expect.equal Nothing
+            ]
         ]
 
 

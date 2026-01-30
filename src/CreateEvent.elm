@@ -6,6 +6,8 @@ module CreateEvent exposing
     , isEndTimeAfterStartTime
     , isFormValid
     , isValidUrl
+    , validateEndTimeMessage
+    , validateExternalUrlMessage
     )
 
 {-| Module for creating new events
@@ -52,6 +54,63 @@ type RsvpConfigSelection
 isValidUrl : String -> Bool
 isValidUrl url =
     String.startsWith "http://" url || String.startsWith "https://" url
+
+
+{-| Validate external URL and return error message if invalid
+
+Returns Nothing if:
+
+  - URL is empty (no error shown for empty fields)
+  - URL is valid (starts with http:// or https://)
+
+Returns Just "error message" if:
+
+  - URL has content but doesn't start with http:// or https://
+
+-}
+validateExternalUrlMessage : String -> Maybe String
+validateExternalUrlMessage url =
+    if String.isEmpty url then
+        Nothing
+
+    else if isValidUrl url then
+        Nothing
+
+    else
+        Just "URL must start with http:// or https://"
+
+
+{-| Validate end time is after start time and return error message if invalid
+
+Returns Nothing if:
+
+  - Any date/time field is empty (no error shown for incomplete fields)
+  - End datetime is after start datetime (valid)
+
+Returns Just "error message" if:
+
+  - All fields are filled but end is before or equal to start
+
+-}
+validateEndTimeMessage : String -> String -> String -> String -> Maybe String
+validateEndTimeMessage startDate startTime endDate endTime =
+    -- Only validate if all fields are filled
+    if String.isEmpty startDate || String.isEmpty startTime || String.isEmpty endDate || String.isEmpty endTime then
+        Nothing
+
+    else
+        let
+            startDateTime =
+                combineDateTime startDate startTime
+
+            endDateTime =
+                combineDateTime endDate endTime
+        in
+        if isEndTimeAfterStartTime startDateTime endDateTime then
+            Nothing
+
+        else
+            Just "End time must be after start time"
 
 
 {-| Combine date (YYYY-MM-DD) and time (HH:MM) into ISO8601 format (YYYY-MM-DDTHH:MM)
