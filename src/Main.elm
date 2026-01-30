@@ -2,6 +2,7 @@ port module Main exposing (Model, Msg(..), main, update)
 
 import Auth exposing (AuthState(..), LoginFormState, User)
 import Browser
+import CreateEvent exposing (CreateEventFormData, RsvpConfigSelection(..))
 import Dict
 import Event exposing (Event)
 import Html exposing (Html, div, h1, text)
@@ -87,6 +88,7 @@ type ModalState
     = EventModalOpen Event
     | RsvpModalOpen Event RsvpFormData (Maybe Event) (RemoteData String ())
     | LoginModalOpen LoginFormState
+    | CreateEventModalOpen CreateEventFormData (RemoteData String ())
 
 
 type alias Model =
@@ -127,6 +129,20 @@ init flags =
 -- UPDATE
 
 
+{-| Initialize an empty create event form
+-}
+initCreateEventFormData : CreateEventFormData
+initCreateEventFormData =
+    { title = ""
+    , description = ""
+    , startTime = ""
+    , endTime = ""
+    , location = ""
+    , rsvpConfig = NoRsvpSelection
+    , externalRsvpUrl = ""
+    }
+
+
 type RsvpField
     = FullName
     | Adults
@@ -150,6 +166,16 @@ type Msg
     | MagicLinkSent Bool
     | AuthStateChanged Json.Decode.Value
     | SignOut
+    | OpenCreateEventModal
+    | UpdateEventTitle String
+    | UpdateEventDescription String
+    | UpdateEventStartTime String
+    | UpdateEventEndTime String
+    | UpdateEventLocation String
+    | UpdateEventRsvpConfig RsvpConfigSelection
+    | UpdateEventExternalRsvpUrl String
+    | SubmitCreateEvent
+    | GotCreateEventResult (Result Http.Error ())
 
 
 fetchEvents : String -> String -> Cmd Msg
@@ -197,6 +223,24 @@ submitRsvp supabaseUrl supabaseAnonKey eventId formData =
         , url = supabaseUrl ++ "/rest/v1/rsvps"
         , body = Http.jsonBody (Rsvp.encodeRsvp eventId formData)
         , expect = Http.expectWhatever GotRsvpSubmissionResult
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+createEvent : String -> String -> String -> CreateEvent.CreateEventFormData -> Cmd Msg
+createEvent supabaseUrl supabaseAnonKey accessToken formData =
+    Http.request
+        { method = "POST"
+        , headers =
+            [ Http.header "apikey" supabaseAnonKey
+            , Http.header "Authorization" ("Bearer " ++ accessToken) -- Use user's JWT token!
+            , Http.header "Content-Type" "application/json"
+            , Http.header "Prefer" "return=minimal"
+            ]
+        , url = supabaseUrl ++ "/rest/v1/events"
+        , body = Http.jsonBody (CreateEvent.encodeEvent formData)
+        , expect = Http.expectWhatever GotCreateEventResult
         , timeout = Nothing
         , tracker = Nothing
         }
@@ -386,6 +430,114 @@ update msg model =
         SignOut ->
             ( model, requestSignOut () )
 
+        OpenCreateEventModal ->
+            ( { model | modalOpen = Just (CreateEventModalOpen initCreateEventFormData NotAsked) }
+            , Cmd.none
+            )
+
+        UpdateEventTitle newTitle ->
+            case model.modalOpen of
+                Just (CreateEventModalOpen formData status) ->
+                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | title = newTitle } status) }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        UpdateEventDescription newDescription ->
+            case model.modalOpen of
+                Just (CreateEventModalOpen formData status) ->
+                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | description = newDescription } status) }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        UpdateEventStartTime newStartTime ->
+            case model.modalOpen of
+                Just (CreateEventModalOpen formData status) ->
+                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | startTime = newStartTime } status) }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        UpdateEventEndTime newEndTime ->
+            case model.modalOpen of
+                Just (CreateEventModalOpen formData status) ->
+                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | endTime = newEndTime } status) }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        UpdateEventLocation newLocation ->
+            case model.modalOpen of
+                Just (CreateEventModalOpen formData status) ->
+                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | location = newLocation } status) }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        UpdateEventRsvpConfig newRsvpConfig ->
+            case model.modalOpen of
+                Just (CreateEventModalOpen formData status) ->
+                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | rsvpConfig = newRsvpConfig } status) }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        UpdateEventExternalRsvpUrl newUrl ->
+            case model.modalOpen of
+                Just (CreateEventModalOpen formData status) ->
+                    ( { model | modalOpen = Just (CreateEventModalOpen { formData | externalRsvpUrl = newUrl } status) }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        SubmitCreateEvent ->
+            case ( model.modalOpen, model.authState ) of
+                ( Just (CreateEventModalOpen formData _), SignedIn user ) ->
+                    if CreateEvent.isFormValid formData then
+                        ( { model | modalOpen = Just (CreateEventModalOpen formData Loading) }
+                        , createEvent model.supabaseUrl model.supabaseAnonKey user.accessToken formData
+                        )
+
+                    else
+                        ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        GotCreateEventResult result ->
+            case result of
+                Ok () ->
+                    -- Success: close modal and refresh events list
+                    ( { model | modalOpen = Nothing }
+                    , fetchEvents model.supabaseUrl model.supabaseAnonKey
+                    )
+
+                Err httpError ->
+                    -- Error: keep modal open, show error
+                    case model.modalOpen of
+                        Just (CreateEventModalOpen formData _) ->
+                            ( { model | modalOpen = Just (CreateEventModalOpen formData (Failure (httpErrorToString httpError))) }
+                            , Cmd.none
+                            )
+
+                        _ ->
+                            ( model, Cmd.none )
+
 
 
 -- VIEW
@@ -406,7 +558,7 @@ view model =
             in
             div [ Html.Attributes.class "app" ]
                 [ viewNavbar model.townOrName
-                , viewEventsRemoteData t model.events
+                , viewEventsRemoteData model.authState t model.events
                 , viewModal t counts model.modalOpen
                 , viewLoginButton model.authState
                 ]
@@ -429,8 +581,8 @@ viewNavbar townOrName =
         ]
 
 
-viewEventsRemoteData : Time.Posix -> RemoteData String (List Event) -> Html Msg
-viewEventsRemoteData now remoteData =
+viewEventsRemoteData : AuthState -> Time.Posix -> RemoteData String (List Event) -> Html Msg
+viewEventsRemoteData authState now remoteData =
     case remoteData of
         NotAsked ->
             text ""
@@ -439,7 +591,7 @@ viewEventsRemoteData now remoteData =
             div [ Html.Attributes.class "loading" ] [ text "Loading events..." ]
 
         Success events ->
-            viewEventList now events
+            viewEventList authState now events
 
         Failure error ->
             div [ Html.Attributes.class "error" ]
@@ -448,15 +600,17 @@ viewEventsRemoteData now remoteData =
                 ]
 
 
-viewEventList : Time.Posix -> List Event -> Html Msg
-viewEventList now events =
+viewEventList : AuthState -> Time.Posix -> List Event -> Html Msg
+viewEventList authState now events =
     let
         upcomingEvents =
             Event.upcomingEvents now events
                 |> Event.sortByStartTime
     in
     div [ Html.Attributes.class "event-list" ]
-        (List.map viewEventCard upcomingEvents)
+        (viewNewEventButton authState
+            :: List.map viewEventCard upcomingEvents
+        )
 
 
 viewEventCard : Event -> Html Msg
@@ -510,6 +664,22 @@ viewRsvpButton event =
                 [ text "Get Tickets" ]
 
 
+viewNewEventButton : AuthState -> Html Msg
+viewNewEventButton authState =
+    case authState of
+        SignedIn _ ->
+            div [ Html.Attributes.class "new-event-button-container" ]
+                [ Html.button
+                    [ Html.Attributes.class "new-event-button"
+                    , onClick OpenCreateEventModal
+                    ]
+                    [ text "+ New Event" ]
+                ]
+
+        SignedOut ->
+            text ""
+
+
 viewLoginButton : AuthState -> Html Msg
 viewLoginButton authState =
     div [ Html.Attributes.class "login-button-container" ]
@@ -548,6 +718,9 @@ viewModal now rsvpCounts maybeModal =
 
         Just (LoginModalOpen formState) ->
             viewLoginModal formState
+
+        Just (CreateEventModalOpen formData status) ->
+            viewCreateEventModal formData status
 
 
 viewEventModal : RsvpCounts -> Event -> Html Msg
@@ -697,6 +870,166 @@ viewRsvpModal event formData submissionState =
                         )
                     ]
                 , case submissionState of
+                    Failure errorMsg ->
+                        div [ Html.Attributes.class "form-error" ]
+                            [ text errorMsg ]
+
+                    _ ->
+                        text ""
+                ]
+            ]
+        ]
+
+
+rsvpConfigFromString : String -> RsvpConfigSelection
+rsvpConfigFromString str =
+    case str of
+        "no_attendance" ->
+            NoAttendanceSelection
+
+        "with_rsvp" ->
+            WithRsvpSelection
+
+        "external_rsvp" ->
+            ExternalRsvpSelection
+
+        _ ->
+            -- default
+            NoRsvpSelection
+
+
+viewCreateEventModal : CreateEventFormData -> RemoteData String () -> Html Msg
+viewCreateEventModal formData status =
+    div [ Html.Attributes.class "modal-backdrop" ]
+        [ div
+            [ Html.Attributes.class "modal-container"
+            ]
+            [ -- Modal close button (×)
+              Html.button
+                [ Html.Attributes.class "modal-close-button"
+                , onClick CloseModal
+                ]
+                [ text "×" ]
+
+            -- Modal header
+            , div [ Html.Attributes.class "modal-header" ]
+                [ h1 [ Html.Attributes.class "modal-title" ] [ text "Create New Event" ]
+                ]
+
+            -- Modal body with form
+            , div [ Html.Attributes.class "modal-body" ]
+                [ -- Title field
+                  div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ] [ text "Event Title" ]
+                    , Html.input
+                        [ Html.Attributes.class "form-input"
+                        , Html.Attributes.type_ "text"
+                        , Html.Attributes.placeholder "Community BBQ"
+                        , Html.Attributes.value formData.title
+                        , onInput UpdateEventTitle
+                        ]
+                        []
+                    ]
+
+                -- Description field (textarea for multiline)
+                , div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ] [ text "Description" ]
+                    , Html.textarea
+                        [ Html.Attributes.class "form-input"
+                        , Html.Attributes.rows 4
+                        , Html.Attributes.placeholder "Tell people about the event..."
+                        , Html.Attributes.value formData.description
+                        , onInput UpdateEventDescription
+                        ]
+                        []
+                    ]
+
+                -- Start Time field (datetime-local)
+                , div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ] [ text "Start Time" ]
+                    , Html.input
+                        [ Html.Attributes.class "form-input"
+                        , Html.Attributes.type_ "datetime-local"
+                        , Html.Attributes.value formData.startTime
+                        , onInput UpdateEventStartTime
+                        ]
+                        []
+                    ]
+
+                -- End Time field (datetime-local)
+                , div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ] [ text "End Time" ]
+                    , Html.input
+                        [ Html.Attributes.class "form-input"
+                        , Html.Attributes.type_ "datetime-local"
+                        , Html.Attributes.value formData.endTime
+                        , onInput UpdateEventEndTime
+                        ]
+                        []
+                    ]
+
+                -- Location field
+                , div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ] [ text "Location" ]
+                    , Html.input
+                        [ Html.Attributes.class "form-input"
+                        , Html.Attributes.type_ "text"
+                        , Html.Attributes.placeholder "Fryerstown Old School"
+                        , Html.Attributes.value formData.location
+                        , onInput UpdateEventLocation
+                        ]
+                        []
+                    ]
+
+                -- RSVP Config dropdown
+                , div [ Html.Attributes.class "form-field" ]
+                    [ Html.label [ Html.Attributes.class "form-label" ] [ text "RSVP Type" ]
+                    , Html.select
+                        [ Html.Attributes.class "form-input"
+                        , onInput (rsvpConfigFromString >> UpdateEventRsvpConfig)
+                        ]
+                        [ Html.option [ Html.Attributes.value "no_rsvp" ] [ text "Anyone Welcome, No RSVP Required" ]
+                        , Html.option [ Html.Attributes.value "with_rsvp" ] [ text "Requires RSVP (free)" ]
+                        , Html.option [ Html.Attributes.value "external_rsvp" ] [ text "Ticketed ($$)" ]
+                        , Html.option [ Html.Attributes.value "no_attendance" ] [ text "No Attendence Required" ]
+                        ]
+                    ]
+
+                -- External RSVP URL (conditional)
+                , case formData.rsvpConfig of
+                    ExternalRsvpSelection ->
+                        div [ Html.Attributes.class "form-field" ]
+                            [ Html.label [ Html.Attributes.class "form-label" ] [ text "Link to Buy Tickets" ]
+                            , Html.input
+                                [ Html.Attributes.class "form-input"
+                                , Html.Attributes.type_ "url"
+                                , Html.Attributes.placeholder "https://example.com/rsvp"
+                                , Html.Attributes.value formData.externalRsvpUrl
+                                , onInput UpdateEventExternalRsvpUrl
+                                ]
+                                []
+                            ]
+
+                    _ ->
+                        text ""
+
+                -- Submit button
+                , Html.button
+                    [ Html.Attributes.class "form-submit-button"
+                    , Html.Attributes.disabled (not (CreateEvent.isFormValid formData) || status == Loading)
+                    , onClick SubmitCreateEvent
+                    ]
+                    [ text
+                        (if status == Loading then
+                            "Creating..."
+
+                         else
+                            "Create Event"
+                        )
+                    ]
+
+                -- Error message
+                , case status of
                     Failure errorMsg ->
                         div [ Html.Attributes.class "form-error" ]
                             [ text errorMsg ]

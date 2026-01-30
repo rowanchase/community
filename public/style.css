@@ -548,3 +548,34 @@ body {
     text-align: center;
     font-weight: 600;
 }
+
+/* New Event Button */
+.new-event-button-container {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.new-event-button {
+    background-color: var(--orange-light);
+    color: var(--ink);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+}
+
+.new-event-button:hover {
+    background-color: var(--orange);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.new-event-button:active {
+    transform: translateY(0);
+}

@@ -22,6 +22,7 @@ import RemoteData exposing (RemoteData(..))
 type alias User =
     { id : String
     , email : String
+    , accessToken : String  -- JWT token for authenticated requests
     }
 
 
@@ -81,14 +82,16 @@ Expected JSON format:
 
     { "id": "user-123"
     , "email": "user@example.com"
+    , "accessToken": "eyJhbGc..."
     }
 
 -}
 userDecoder : Decoder User
 userDecoder =
-    Decode.map2 User
+    Decode.map3 User
         (Decode.field "id" Decode.string)
         (Decode.field "email" Decode.string)
+        (Decode.field "accessToken" Decode.string)
 
 
 {-| Decoder for AuthState from JSON
@@ -104,6 +107,7 @@ SignedIn:
     { "tag": "SignedIn"
     , "id": "user-123"
     , "email": "user@example.com"
+    , "accessToken": "eyJhbGc..."
     }
 
 -}

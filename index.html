@@ -34,7 +34,8 @@
             app.ports.authStateChanged.send({
               tag: 'SignedIn',
               id: session.user.id,
-              email: session.user.email
+              email: session.user.email,
+              accessToken: session.access_token
             })
           } else {
             app.ports.authStateChanged.send({ tag: 'SignedOut' })
